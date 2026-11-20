@@ -1005,13 +1005,13 @@ function startRushGame() {
   function loop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Yukarıdan gelen emojilerin sıklığı ve hızı rahat oynanacak şekilde yavaşlatıldı!
-    if (Math.random() < 0.025 && items.length < 5) {
+    // Dengeli-hızlı akış: Emojiler ideal hızda düşer
+    if (Math.random() < 0.038 && items.length < 7) {
       const spec = drops[Math.floor(Math.random() * drops.length)];
       items.push({
         x: 28 + Math.random() * (canvas.width - 56),
         y: -20,
-        speed: 0.85 + Math.random() * 0.65, // Çok daha yumuşak ve yavaş iniş hızı
+        speed: 1.65 + Math.random() * 1.15,
         ...spec
       });
     }
@@ -1044,16 +1044,21 @@ function startRushGame() {
         items.splice(i, 1);
         continue;
       }
-      if (it.y > canvas.height + 25) {
+      // Sevgi emojisi yakalanamayıp aşağı kaçarsa 1 hak düşer (3 emoji kaçırınca oyun biter!)
+      if (it.y > canvas.height + 10) {
+        if (!it.bad) {
+          lives--;
+          playCuteSound('punch');
+        }
         items.splice(i, 1);
       }
     }
 
-    document.getElementById('rushScoreLiveBadge').textContent = `❤️x${lives} • Skor: ${score}`;
+    document.getElementById('rushScoreLiveBadge').textContent = `❤️x${Math.max(0, lives)} Hak • Skor: ${score}`;
 
     if (lives <= 0) {
       overlay.classList.remove('hidden');
-      overlay.querySelector('h3').textContent = `Oyun Bitti! Toplam Skorun: ${score} ⚡`;
+      overlay.querySelector('h3').textContent = `3 Emoji Kaçırdın! Oyun Bitti • Skorun: ${score} ⚡`;
       if (socket && socket.connected) {
         socket.emit('update_game_score', {
           roomCode: currentRoomCode,
