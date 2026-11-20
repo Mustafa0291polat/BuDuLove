@@ -9,10 +9,10 @@
   "theme_color": "#E88BAE",
   "icons": [
     {
-      "src": "/assets/budu-icon.png",
-      "sizes": "192x192",
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/assets/budu-icon.png",

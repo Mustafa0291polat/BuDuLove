@@ -5,12 +5,142 @@
       "appName": "BuDuVerse",
       "startDate": "2024-06-14",
       "loveMeter": 100,
-      "totalInteractions": 193,
+      "totalInteractions": 206,
       "bubuName": "Bubu",
       "duduName": "Dudu",
-      "theme": "romantic-pink"
+      "theme": "pink-lilac-khaki"
     },
     "affectionHistory": [
+      {
+        "id": "aff-1795189416577-iq69",
+        "fromChar": "dudu",
+        "fromName": "Dudu",
+        "toChar": "bubu",
+        "type": "kiss",
+        "title": "Sulu Öpücük Gönderdi 💋",
+        "message": "Dudu, Bubu'nun yanağına kocaman tatlı bir öpücük kondurdu! 💋💕",
+        "timestamp": "2026-11-20T15:43:36.577Z"
+      },
+      {
+        "id": "aff-1795189413612-hz30",
+        "fromChar": "dudu",
+        "fromName": "Dudu",
+        "toChar": "bubu",
+        "type": "hug",
+        "title": "Sımsıkı Sarıldı 🤗",
+        "message": "Dudu, Bubu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
+        "timestamp": "2026-11-20T15:43:33.612Z"
+      },
+      {
+        "id": "aff-1795189413472-tp0j",
+        "fromChar": "dudu",
+        "fromName": "Dudu",
+        "toChar": "bubu",
+        "type": "hug",
+        "title": "Sımsıkı Sarıldı 🤗",
+        "message": "Dudu, Bubu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
+        "timestamp": "2026-11-20T15:43:33.472Z"
+      },
+      {
+        "id": "aff-1795189413322-042m",
+        "fromChar": "dudu",
+        "fromName": "Dudu",
+        "toChar": "bubu",
+        "type": "hug",
+        "title": "Sımsıkı Sarıldı 🤗",
+        "message": "Dudu, Bubu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
+        "timestamp": "2026-11-20T15:43:33.322Z"
+      },
+      {
+        "id": "aff-1795189413190-kpnw",
+        "fromChar": "dudu",
+        "fromName": "Dudu",
+        "toChar": "bubu",
+        "type": "hug",
+        "title": "Sımsıkı Sarıldı 🤗",
+        "message": "Dudu, Bubu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
+        "timestamp": "2026-11-20T15:43:33.190Z"
+      },
+      {
+        "id": "aff-1795189413070-8yu8",
+        "fromChar": "dudu",
+        "fromName": "Dudu",
+        "toChar": "bubu",
+        "type": "hug",
+        "title": "Sımsıkı Sarıldı 🤗",
+        "message": "Dudu, Bubu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
+        "timestamp": "2026-11-20T15:43:33.070Z"
+      },
+      {
+        "id": "aff-1795189412900-h3g5",
+        "fromChar": "dudu",
+        "fromName": "Dudu",
+        "toChar": "bubu",
+        "type": "hug",
+        "title": "Sımsıkı Sarıldı 🤗",
+        "message": "Dudu, Bubu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
+        "timestamp": "2026-11-20T15:43:32.900Z"
+      },
+      {
+        "id": "aff-1795189412777-uwxe",
+        "fromChar": "dudu",
+        "fromName": "Dudu",
+        "toChar": "bubu",
+        "type": "hug",
+        "title": "Sımsıkı Sarıldı 🤗",
+        "message": "Dudu, Bubu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
+        "timestamp": "2026-11-20T15:43:32.777Z"
+      },
+      {
+        "id": "aff-1795189412604-4mb6",
+        "fromChar": "dudu",
+        "fromName": "Dudu",
+        "toChar": "bubu",
+        "type": "hug",
+        "title": "Sımsıkı Sarıldı 🤗",
+        "message": "Dudu, Bubu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
+        "timestamp": "2026-11-20T15:43:32.604Z"
+      },
+      {
+        "id": "aff-1795189412441-1fwg",
+        "fromChar": "dudu",
+        "fromName": "Dudu",
+        "toChar": "bubu",
+        "type": "hug",
+        "title": "Sımsıkı Sarıldı 🤗",
+        "message": "Dudu, Bubu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
+        "timestamp": "2026-11-20T15:43:32.441Z"
+      },
+      {
+        "id": "aff-1795189412307-sjwi",
+        "fromChar": "dudu",
+        "fromName": "Dudu",
+        "toChar": "bubu",
+        "type": "hug",
+        "title": "Sımsıkı Sarıldı 🤗",
+        "message": "Dudu, Bubu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
+        "timestamp": "2026-11-20T15:43:32.307Z"
+      },
+      {
+        "id": "aff-1795189412153-460f",
+        "fromChar": "dudu",
+        "fromName": "Dudu",
+        "toChar": "bubu",
+        "type": "hug",
+        "title": "Sımsıkı Sarıldı 🤗",
+        "message": "Dudu, Bubu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
+        "timestamp": "2026-11-20T15:43:32.153Z"
+      },
+      {
+        "id": "aff-1795189412012-7l4w",
+        "fromChar": "dudu",
+        "fromName": "Dudu",
+        "toChar": "bubu",
+        "type": "hug",
+        "title": "Sımsıkı Sarıldı 🤗",
+        "message": "Dudu, Bubu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
+        "timestamp": "2026-11-20T15:43:32.012Z"
+      },
       {
         "id": "aff-1795188086237-2zvu",
         "fromChar": "dudu",
@@ -280,136 +410,6 @@
         "title": "Sımsıkı Sarıldı 🤗",
         "message": "Bubu, Dudu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
         "timestamp": "2026-11-20T15:17:09.303Z"
-      },
-      {
-        "id": "aff-1795187828063-xz62",
-        "fromChar": "bubu",
-        "fromName": "Bubu",
-        "toChar": "dudu",
-        "type": "hug",
-        "title": "Sımsıkı Sarıldı 🤗",
-        "message": "Bubu, Dudu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
-        "timestamp": "2026-11-20T15:17:08.064Z"
-      },
-      {
-        "id": "aff-1795187823788-wz7k",
-        "fromChar": "bubu",
-        "fromName": "Bubu",
-        "toChar": "dudu",
-        "type": "hug",
-        "title": "Sımsıkı Sarıldı 🤗",
-        "message": "Bubu, Dudu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
-        "timestamp": "2026-11-20T15:17:03.788Z"
-      },
-      {
-        "id": "aff-1795186804384-vpgd",
-        "fromChar": "bubu",
-        "fromName": "Bubu",
-        "toChar": "dudu",
-        "type": "hug",
-        "title": "Sımsıkı Sarıldı 🤗",
-        "message": "Bubu, Dudu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
-        "timestamp": "2026-11-20T15:00:04.384Z"
-      },
-      {
-        "id": "aff-1795186739887-qwj4",
-        "fromChar": "dudu",
-        "fromName": "Dudu",
-        "toChar": "bubu",
-        "type": "hug",
-        "title": "Sımsıkı Sarıldı 🤗",
-        "message": "Dudu, Bubu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
-        "timestamp": "2026-11-20T14:58:59.887Z"
-      },
-      {
-        "id": "aff-1795186414410-eurl",
-        "fromChar": "bubu",
-        "fromName": "Bubu",
-        "toChar": "dudu",
-        "type": "kiss",
-        "title": "Sulu Öpücük Gönderdi 💋",
-        "message": "Bubu, Dudu'nun yanağına kocaman tatlı bir öpücük kondurdu! 💋💕",
-        "timestamp": "2026-11-20T14:53:34.410Z"
-      },
-      {
-        "id": "aff-1795186081033-dhrb",
-        "fromChar": "bubu",
-        "fromName": "Bubu",
-        "toChar": "dudu",
-        "type": "kiss",
-        "title": "Sulu Öpücük Gönderdi 💋",
-        "message": "Bubu, Dudu'nun yanağına kocaman tatlı bir öpücük kondurdu! 💋💕",
-        "timestamp": "2026-11-20T14:48:01.033Z"
-      },
-      {
-        "id": "aff-1795186076733-ptr9",
-        "fromChar": "bubu",
-        "fromName": "Bubu",
-        "toChar": "dudu",
-        "type": "kiss",
-        "title": "Sulu Öpücük Gönderdi 💋",
-        "message": "Bubu, Dudu'nun yanağına kocaman tatlı bir öpücük kondurdu! 💋💕",
-        "timestamp": "2026-11-20T14:47:56.734Z"
-      },
-      {
-        "id": "aff-1795185602783-escj",
-        "fromChar": "dudu",
-        "fromName": "Dudu",
-        "toChar": "bubu",
-        "type": "heartbeat",
-        "title": "Kalp Atışı Gönderdi 💓",
-        "message": "Dudu'nin kalbi şu an sadece Bubu için küt küt atıyor! 💓✨",
-        "timestamp": "2026-11-20T14:40:02.783Z"
-      },
-      {
-        "id": "aff-1795185600451-u5tv",
-        "fromChar": "dudu",
-        "fromName": "Dudu",
-        "toChar": "bubu",
-        "type": "treat",
-        "title": "Boba & Çilek İkram Etti 🧋",
-        "message": "Dudu, Bubu'ya en sevdiği çilekli Bubble Tea'yi ikram etti! 🧋🍓",
-        "timestamp": "2026-11-20T14:40:00.451Z"
-      },
-      {
-        "id": "aff-1795185598586-4bo4",
-        "fromChar": "dudu",
-        "fromName": "Dudu",
-        "toChar": "bubu",
-        "type": "touch",
-        "title": "Seni Özleyip Dokundu 👉👈",
-        "message": "Dudu, \"Bana ilgi göster aşkım!\" diyerek Bubu'ya tatlıca dokundu! 🥺💕",
-        "timestamp": "2026-11-20T14:39:58.586Z"
-      },
-      {
-        "id": "aff-1795185596168-vpn3",
-        "fromChar": "dudu",
-        "fromName": "Dudu",
-        "toChar": "bubu",
-        "type": "pinch",
-        "title": "Tatlı Yanaklarını Mıncırdı 🤏",
-        "message": "Dudu, Bubu'nun tombul yanaklarını sevgiyle mıncırdı! ☺️🌸",
-        "timestamp": "2026-11-20T14:39:56.168Z"
-      },
-      {
-        "id": "aff-1795185593284-0ep4",
-        "fromChar": "dudu",
-        "fromName": "Dudu",
-        "toChar": "bubu",
-        "type": "hug",
-        "title": "Sımsıkı Sarıldı 🤗",
-        "message": "Dudu, Bubu'ya kemikleri ısınana kadar sımsıkı sarıldı! 🤗💖",
-        "timestamp": "2026-11-20T14:39:53.284Z"
-      },
-      {
-        "id": "aff-1795185588927-clcq",
-        "fromChar": "dudu",
-        "fromName": "Dudu",
-        "toChar": "bubu",
-        "type": "kiss",
-        "title": "Sulu Öpücük Gönderdi 💋",
-        "message": "Dudu, Bubu'nun yanağına kocaman tatlı bir öpücük kondurdu! 💋💕",
-        "timestamp": "2026-11-20T14:39:48.928Z"
       }
     ],
     "notes": [
@@ -674,14 +674,14 @@
       "xox": {
         "board": [
           "bubu",
-          null,
+          "dudu",
           "dudu",
           null,
           "dudu",
           "bubu",
           "bubu",
           null,
-          null
+          "bubu"
         ],
         "turn": "dudu",
         "winner": null,
