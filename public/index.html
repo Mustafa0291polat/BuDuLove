@@ -9,24 +9,24 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="BuDuLove" />
-  <meta name="theme-color" content="#FCE8F1" />
-  <link rel="manifest" href="/manifest.json?v=3" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=3" />
-  <link rel="apple-touch-icon-precomposed" href="/apple-touch-icon-precomposed.png?v=3" />
-  <link rel="icon" type="image/png" sizes="180x180" href="/apple-touch-icon.png?v=3" />
+  <meta name="theme-color" content="#8E213B" />
+  <link rel="manifest" href="/manifest.json?v=4" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=4" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=4" />
+  <link rel="apple-touch-icon-precomposed" href="/apple-touch-icon-precomposed.png?v=4" />
+  <link rel="icon" type="image/png" sizes="180x180" href="/apple-touch-icon.png?v=4" />
 
-  <link rel="stylesheet" href="/css/style.css?v=2" />
+  <link rel="stylesheet" href="/css/style.css?v=4" />
 </head>
 <body>
-  <!-- Pembe - Lila - Haki Pastel Arka Plan Küreleri -->
+  <!-- Vişne Çürüğü & Pastel Arka Plan Küreleri -->
   <div class="bg-blobs">
     <div class="blob blob-pink"></div>
     <div class="blob blob-lilac"></div>
     <div class="blob blob-khaki"></div>
   </div>
 
-  <!-- iOS Dynamic Island / Push Bildirim Bannerı -->
+  <!-- iOS Dynamic Island / Canlı Bildirim Bannerı -->
   <div id="iosNotificationBanner" class="ios-notification-banner" onclick="hideIosBanner()">
     <div id="notifAvatar" class="notif-avatar">🐼💕</div>
     <div class="notif-body">
@@ -34,8 +34,8 @@
         <span>BuDuLove • Şimdi</span>
         <span>🔔 Canlı Bildirim</span>
       </div>
-      <div id="notifTitle" class="notif-title">Bubu sana öpücük gönderdi! 💋</div>
-      <div id="notifText" class="notif-text">Yanağına kocaman tatlı bir öpücük kondurdu!</div>
+      <div id="notifTitle" class="notif-title">Hoş Geldin! 💕</div>
+      <div id="notifText" class="notif-text">Sevgilinle ortak dünyanız hazır!</div>
     </div>
   </div>
 
@@ -55,30 +55,32 @@
       </div>
 
       <div class="topbar-actions">
-        <button id="quickRoleSwitchBtn" class="role-switch-chip" onclick="openCharSelectModal()" title="Karakterimi Seç (Bubu veya Dudu)">
+        <button id="quickRoleSwitchBtn" class="role-switch-chip" onclick="openCharSelectModal()" title="Karakterimi Seç">
           <span id="myCharEmoji">🐼</span>
           <span id="myCharText">Bubu</span>
         </button>
+        <button class="icon-btn" onclick="cycleQuickTheme()" title="Vişne Çürüğü & Renk Teması Değiştir">🍒</button>
+        <button class="icon-btn" onclick="enableBackgroundPushNotifications()" title="Arka Plan Bildirimlerini Aç">🔔</button>
         <button class="icon-btn" onclick="openQrModal()" title="iPhone Kurulum & QR Kod">📱</button>
       </div>
     </header>
 
     <!-- Yaklaşan Etkinlik Otomatik Hatırlatma Şeridi -->
     <div id="upcomingReminderBar" class="upcoming-reminder-bar" onclick="switchTab('tab-calendar')">
-      <span id="upcomingReminderText">📅 Yaklaşan etkinlik kontrol ediliyor...</span>
-      <span id="upcomingReminderBadge" class="reminder-badge">Hatırlatıcı</span>
+      <span id="upcomingReminderText">📅 Ortak Takvim: Yeni plan veya anı eklemek için dokun!</span>
+      <span id="upcomingReminderBadge" class="reminder-badge">Takvim</span>
     </div>
 
     <!-- İçerik Sekmeleri -->
     <main class="app-content">
 
       <!-- =========================================================
-           SEKME 1: BUBU & DUDU SEVGİ SAHNESİ VE KARAKTER SEÇİMİ
+           SEKME 1: BUBU & DUDU SEVGİ SAHNESİ (TEK KARAKTER + YUMRUK AT)
            ========================================================= -->
       <section id="tab-home" class="tab-pane active">
 
-        <!-- Tek Karakter Görünümü: Telefonda Hangi Karakter Seçildiyse Sadece O Gösterilir -->
-        <div class="char-selector-bar single-char-bar">
+        <!-- Tek Karakter Görünümü -->
+        <div class="char-selector-bar">
           <div id="cardRoleMe" class="char-choice-card active-bubu" onclick="openCharSelectModal()">
             <div id="meAvatarBox" class="char-mini-avatar">🐼</div>
             <div class="char-choice-info">
@@ -90,113 +92,92 @@
           </div>
         </div>
 
-        <!-- Seçili Karakter İnteraktif Dokunma, Öpücük ve Sarılma Sahnesi -->
+        <!-- Seçili Karakter İnteraktif Sahnesi -->
         <div class="glass-card budu-stage-card">
           <div class="couple-days-banner">
             <div class="days-badge">
               <span>💞</span>
-              <span id="togetherDaysCount">889 Gündür Birlikteyiz</span>
+              <span id="togetherDaysCount">22 Eylül 2025 • ... Gündür Birlikteyiz</span>
             </div>
             <span class="pill-tag khaki" onclick="openStoryModal()" style="cursor:pointer;">✨ Karakter Hikayesi</span>
           </div>
 
           <!-- Canlı Dokunmatik Tek Karakter Sahnesi -->
           <div id="buduStage" class="budu-interactive-stage">
-            <div id="stageSpeech" class="stage-speech-bubble">Karakterine dokun, sev ve öpücük gönder! 💕</div>
+            <div id="stageSpeech" class="stage-speech-bubble">Karakterine dokun, sev veya öpücük gönder! 💕</div>
 
-            <div id="charactersWrapper" class="characters-wrapper single-character-mode">
-              <!-- BUBU (Sevimli Beyaz Panda) SVG - Sadece Bubu seçiliyse görünür -->
-              <div id="stageCharBubu" class="char-svg-box char-svg-bubu single-stage-char" onclick="onCharacterDirectTouch('bubu', event)">
-                <svg viewBox="0 0 140 150" width="155" height="165">
-                  <!-- Gölge -->
-                  <ellipse cx="70" cy="140" rx="44" ry="8" fill="rgba(123,93,184,0.16)" />
-                  <!-- Kulaklar (Siyah Panda Kulakları) -->
+            <div id="charactersWrapper" class="characters-wrapper">
+              <!-- BUBU (Sevimli Beyaz Panda) SVG -->
+              <div id="stageCharBubu" class="char-svg-box char-svg-bubu" onclick="onCharacterDirectTouch('bubu', event)">
+                <svg viewBox="0 0 140 150" width="150" height="160">
+                  <ellipse cx="70" cy="140" rx="44" ry="8" fill="rgba(99,18,38,0.16)" />
                   <circle cx="34" cy="30" r="16" fill="#2D2532" />
                   <circle cx="106" cy="30" r="16" fill="#2D2532" />
-                  <circle cx="34" cy="30" r="8" fill="#F7C6D9" opacity="0.5" />
-                  <circle cx="106" cy="30" r="8" fill="#F7C6D9" opacity="0.5" />
-                  <!-- Tombul Gövde -->
+                  <circle cx="34" cy="30" r="8" fill="#E5B3C0" opacity="0.6" />
+                  <circle cx="106" cy="30" r="8" fill="#E5B3C0" opacity="0.6" />
                   <ellipse cx="70" cy="110" rx="38" ry="30" fill="#FFFFFF" stroke="#2D2532" stroke-width="3.5" />
-                  <!-- Pembe-Lila Fiyonk / Kalp Yaka -->
-                  <path d="M70 96 C65 90, 56 95, 70 105 C84 95, 75 90, 70 96 Z" fill="#E88BAE" />
-                  <!-- Tombul Kollar -->
+                  <path d="M70 96 C65 90, 56 95, 70 105 C84 95, 75 90, 70 96 Z" fill="#8E213B" />
                   <ellipse cx="34" cy="105" rx="12" ry="18" transform="rotate(20 34 105)" fill="#2D2532" />
                   <ellipse cx="106" cy="105" rx="12" ry="18" transform="rotate(-20 106 105)" fill="#2D2532" />
-                  <!-- Ayaklar -->
                   <ellipse cx="50" cy="135" rx="13" ry="9" fill="#2D2532" />
                   <ellipse cx="90" cy="135" rx="13" ry="9" fill="#2D2532" />
-                  <!-- Kafa (Tombul Beyaz Panda) -->
                   <ellipse cx="70" cy="58" rx="46" ry="40" fill="#FFFFFF" stroke="#2D2532" stroke-width="3.5" />
-                  <!-- Panda Göz Lekeleri ve Gözler -->
                   <ellipse cx="50" cy="56" rx="10" ry="12" transform="rotate(-10 50 56)" fill="#2D2532" />
                   <ellipse cx="90" cy="56" rx="10" ry="12" transform="rotate(10 90 56)" fill="#2D2532" />
                   <circle cx="50" cy="54" r="4" fill="#FFFFFF" />
                   <circle cx="90" cy="54" r="4" fill="#FFFFFF" />
-                  <!-- Pembe Utangaç Yanaklar -->
-                  <ellipse cx="34" cy="68" rx="9" ry="5.5" fill="#F48FB1" opacity="0.75" />
-                  <ellipse cx="106" cy="68" rx="9" ry="5.5" fill="#F48FB1" opacity="0.75" />
-                  <!-- Tatlı Burun ve Gülümseyen Ağız -->
+                  <ellipse cx="34" cy="68" rx="9" ry="5.5" fill="#D87093" opacity="0.78" />
+                  <ellipse cx="106" cy="68" rx="9" ry="5.5" fill="#D87093" opacity="0.78" />
                   <ellipse cx="70" cy="63" rx="4.5" ry="3.2" fill="#2D2532" />
                   <path id="bubuMouth" d="M63 69 Q70 76 77 69" fill="none" stroke="#2D2532" stroke-width="3" stroke-linecap="round" />
                 </svg>
-                <span id="stageBubuTag" class="char-tag" style="color:var(--pink-deep); font-size:12.5px;">🐼 Bubu</span>
+                <span id="stageBubuTag" class="char-tag" style="color:var(--pink-deep);">🐼 Bubu</span>
               </div>
 
-              <!-- DUDU (Tatlı Kahverengi Ayıcık) SVG - Sadece Dudu seçiliyse görünür -->
-              <div id="stageCharDudu" class="char-svg-box char-svg-dudu single-stage-char" style="display:none;" onclick="onCharacterDirectTouch('dudu', event)">
-                <svg viewBox="0 0 140 150" width="155" height="165">
-                  <!-- Gölge -->
-                  <ellipse cx="70" cy="140" rx="44" ry="8" fill="rgba(92,115,80,0.16)" />
-                  <!-- Kulaklar (Kahverengi Ayıcık Kulakları) -->
+              <!-- DUDU (Tatlı Kahverengi Ayıcık) SVG -->
+              <div id="stageCharDudu" class="char-svg-box char-svg-dudu" style="display:none;" onclick="onCharacterDirectTouch('dudu', event)">
+                <svg viewBox="0 0 140 150" width="150" height="160">
+                  <ellipse cx="70" cy="140" rx="44" ry="8" fill="rgba(92,69,54,0.18)" />
                   <circle cx="34" cy="30" r="16" fill="#C68B59" stroke="#4A3222" stroke-width="3.2" />
                   <circle cx="106" cy="30" r="16" fill="#C68B59" stroke="#4A3222" stroke-width="3.2" />
                   <circle cx="34" cy="30" r="8" fill="#F2D7B6" />
                   <circle cx="106" cy="30" r="8" fill="#F2D7B6" />
-                  <!-- Tombul Gövde -->
                   <ellipse cx="70" cy="110" rx="38" ry="30" fill="#C68B59" stroke="#4A3222" stroke-width="3.5" />
-                  <!-- Krem Göbek -->
                   <ellipse cx="70" cy="112" rx="23" ry="19" fill="#F5E1C8" />
-                  <!-- Tombul Kollar -->
                   <ellipse cx="34" cy="105" rx="12" ry="18" transform="rotate(20 34 105)" fill="#C68B59" stroke="#4A3222" stroke-width="3" />
                   <ellipse cx="106" cy="105" rx="12" ry="18" transform="rotate(-20 106 105)" fill="#C68B59" stroke="#4A3222" stroke-width="3" />
-                  <!-- Ayaklar -->
                   <ellipse cx="50" cy="135" rx="13" ry="9" fill="#A87042" stroke="#4A3222" stroke-width="3" />
                   <ellipse cx="90" cy="135" rx="13" ry="9" fill="#A87042" stroke="#4A3222" stroke-width="3" />
-                  <!-- Kafa (Tombul Kahve Ayı) -->
                   <ellipse cx="70" cy="58" rx="46" ry="40" fill="#C68B59" stroke="#4A3222" stroke-width="3.5" />
-                  <!-- Gözler -->
                   <circle cx="50" cy="55" r="5.5" fill="#3B2516" />
                   <circle cx="90" cy="55" r="5.5" fill="#3B2516" />
                   <circle cx="48.5" cy="53" r="2" fill="#FFFFFF" />
                   <circle cx="88.5" cy="53" r="2" fill="#FFFFFF" />
-                  <!-- Krem Ağız Çevresi -->
                   <ellipse cx="70" cy="66" rx="14" ry="10.5" fill="#F5E1C8" />
-                  <!-- Pembe Yanaklar -->
                   <ellipse cx="33" cy="67" rx="9" ry="5.5" fill="#F08080" opacity="0.78" />
                   <ellipse cx="107" cy="67" rx="9" ry="5.5" fill="#F08080" opacity="0.78" />
-                  <!-- Burun ve Ağız -->
                   <ellipse cx="70" cy="62" rx="4.8" ry="3.4" fill="#4A3222" />
                   <path id="duduMouth" d="M64 68 Q70 74 76 68" fill="none" stroke="#4A3222" stroke-width="3" stroke-linecap="round" />
                 </svg>
-                <span id="stageDuduTag" class="char-tag" style="color:var(--khaki-deep); font-size:12.5px;">🐻 Dudu</span>
+                <span id="stageDuduTag" class="char-tag" style="color:var(--khaki-deep);">🐻 Dudu</span>
               </div>
             </div>
 
-            <div class="stage-hint">👆 Karakterine dokun veya aşağıdaki sevgi hareketlerini gönder!</div>
+            <div class="stage-hint">👆 Karakterine dokun veya aşağıdaki butonlarla bildirim gönder!</div>
           </div>
 
           <!-- Sevgi Barı (Love Meter) -->
           <div class="love-meter-wrap">
             <div class="love-meter-labels">
               <span>💖 Günlük Bubu & Dudu Sevgi Enerjimiz</span>
-              <span id="loveMeterValue">%88 Dolu</span>
+              <span id="loveMeterValue">%100 Dolu</span>
             </div>
             <div class="love-meter-track">
-              <div id="loveMeterFill" class="love-meter-fill" style="width: 88%;"></div>
+              <div id="loveMeterFill" class="love-meter-fill" style="width: 100%;"></div>
             </div>
           </div>
 
-          <!-- Karşılıklı Sevgi Gösterme ve Bildirim Gönderme Butonları -->
+          <!-- Karşılıklı Sevgi Gösterme + YUMRUK AT Butonları -->
           <div class="affection-grid">
             <button class="affection-btn aff-pink" onclick="triggerAffection('kiss')">
               <span class="aff-emoji">💋</span>
@@ -222,39 +203,47 @@
               <span class="aff-emoji">💓</span>
               <span>Kalp Atışı</span>
             </button>
+            <button class="affection-btn aff-punch" onclick="triggerAffection('punch')">
+              <span class="aff-emoji">👊💥</span>
+              <span>Yumruk At (Sevgi Enerjisini -%8 Düşürür!)</span>
+            </button>
           </div>
         </div>
 
         <!-- Karşılıklı Gönderilen Sevgi & Bildirim Geçmişi -->
         <div class="glass-card">
           <div class="card-header-row">
-            <div class="card-title">🔔 Canlı Sevgi Bildirimleri</div>
-            <span id="totalInteractionsBadge" class="pill-tag pink">142 Sevgi Dokunuşu</span>
+            <div class="card-title">🔔 Canlı Sevgi & Yumruk Bildirimleri</div>
+            <span id="totalInteractionsBadge" class="pill-tag pink">0 Dokunuş</span>
           </div>
           <div id="affectionFeedList" class="affection-feed"></div>
         </div>
       </section>
 
       <!-- =========================================================
-           SEKME 2: ÇİFT OYUNLARI (BALON, SNAP RUSH, XOX, HAFIZA/QUIZ)
+           SEKME 2: ÇİFT OYUNLARI (BALON, SNAP ÖPÜCÜK, XOX, CANLI HAFIZA&UYUM, DART)
            ========================================================= -->
       <section id="tab-games" class="tab-pane">
         <div class="game-tabs-row">
           <button class="game-selector-btn active" onclick="selectGame('balloon', this)">
-            <span style="font-size:20px;">🎈</span>
-            <span>Balon Patlat</span>
+            <span style="font-size:18px;">🎈</span>
+            <span>Balon</span>
           </button>
           <button class="game-selector-btn" onclick="selectGame('snaprush', this)">
-            <span style="font-size:20px;">⚡</span>
+            <span style="font-size:18px;">⚡</span>
             <span>Snap Öpücük</span>
           </button>
           <button class="game-selector-btn" onclick="selectGame('xox', this)">
-            <span style="font-size:20px;">❌⭕</span>
+            <span style="font-size:18px;">❌⭕</span>
             <span>Aşk XOX</span>
           </button>
           <button class="game-selector-btn" onclick="selectGame('quiz', this)">
-            <span style="font-size:20px;">🃏</span>
+            <span style="font-size:18px;">🃏</span>
             <span>Anı & Uyum</span>
+          </button>
+          <button class="game-selector-btn" onclick="selectGame('dart', this)">
+            <span style="font-size:18px;">🎯</span>
+            <span>Kafa Dart</span>
           </button>
         </div>
 
@@ -268,21 +257,21 @@
             <div class="scoreboard-row">
               <div class="score-pill">
                 <span>🐼 Bubu Rekor:</span>
-                <span id="balloonScoreBubu">240</span>
+                <span id="balloonScoreBubu">0</span>
               </div>
-              <div class="score-pill khaki">
+              <div class="score-pill">
                 <span>🐻 Dudu Rekor:</span>
-                <span id="balloonScoreDudu">210</span>
+                <span id="balloonScoreDudu">0</span>
               </div>
             </div>
 
             <div class="game-canvas-wrap">
-              <canvas id="balloonCanvas" width="400" height="310"></canvas>
+              <canvas id="balloonCanvas" width="400" height="315"></canvas>
               <div id="balloonOverlay" class="game-overlay">
-                <div style="font-size:42px; margin-bottom:8px;">🎈🐼💕🐻</div>
-                <h3 style="font-size:17px; margin-bottom:6px;">Pembe, Lila ve Haki Kalp Balonları!</h3>
-                <p style="font-size:12.5px; color:var(--text-muted); margin-bottom:14px;">
-                  Uçan balonlara hızla dokunarak patlat! Altın Bubu & Dudu balonları +30 puan verir, siyah fırtına balonlarına dikkat et!
+                <div style="font-size:40px; margin-bottom:8px;">🎈🐼💕🐻</div>
+                <h3 style="font-size:16.5px; margin-bottom:6px;">Vişne, Pembe ve Haki Kalp Balonları!</h3>
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">
+                  Uçan balonlara dokunarak patlat! Altın Bubu & Dudu balonları +30 puan verir, siyah fırtına balonlarına dikkat et!
                 </p>
                 <button class="primary-btn" onclick="startBalloonGame()">🎈 Balon Oyununu Başlat</button>
               </div>
@@ -290,31 +279,31 @@
           </div>
         </div>
 
-        <!-- OYUN 2: SNAPCHAT TARZI ÖPÜCÜK & BOBA YAKALAMA (SNAP LOVE RUSH) -->
+        <!-- OYUN 2: SNAP ÖPÜCÜK (YAVAŞLATILMIŞ EMOJİ HIZI) -->
         <div id="game-snaprush" class="game-panel">
           <div class="glass-card">
             <div class="card-header-row">
-              <div class="card-title">⚡ Snap Love Rush: Öpücük Yakala!</div>
+              <div class="card-title">⚡ Snap Öpücük Yakala!</div>
               <span id="rushScoreLiveBadge" class="pill-tag pink">Skor: 0</span>
             </div>
             <div class="scoreboard-row">
               <div class="score-pill">
                 <span>🐼 Bubu Rekor:</span>
-                <span id="rushScoreBubu">185</span>
+                <span id="rushScoreBubu">0</span>
               </div>
-              <div class="score-pill khaki">
+              <div class="score-pill">
                 <span>🐻 Dudu Rekor:</span>
-                <span id="rushScoreDudu">195</span>
+                <span id="rushScoreDudu">0</span>
               </div>
             </div>
 
             <div class="game-canvas-wrap">
-              <canvas id="rushCanvas" width="400" height="310"></canvas>
+              <canvas id="rushCanvas" width="400" height="315"></canvas>
               <div id="rushOverlay" class="game-overlay">
-                <div style="font-size:42px; margin-bottom:8px;">💋🧋🍓⚡</div>
-                <h3 style="font-size:17px; margin-bottom:6px;">Snapchat Tarzı Hızlı Çift Refleksi</h3>
-                <p style="font-size:12.5px; color:var(--text-muted); margin-bottom:14px;">
-                  Parmağınla karakterini sağa-sola kaydır; gökten yağan Öpücükleri (💋), Boba Çaylarını (🧋) ve Çilekleri (🍓) topla, kırık kalplerden kaç!
+                <div style="font-size:40px; margin-bottom:8px;">💋🧋🍓⚡</div>
+                <h3 style="font-size:16.5px; margin-bottom:6px;">Snap Öpücük & Boba Yakalama</h3>
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">
+                  Karakterini sağa-sola kaydır; yukarıdan tatlı bir hızla süzülen Öpücükleri (💋), Boba Çaylarını (🧋) ve Çilekleri (🍓) yakala!
                 </p>
                 <button class="primary-btn" onclick="startRushGame()">⚡ Snap Oyununu Başlat</button>
               </div>
@@ -326,17 +315,17 @@
         <div id="game-xox" class="game-panel">
           <div class="glass-card">
             <div class="card-header-row">
-              <div class="card-title">❌⭕ Bubu vs Dudu Ödüllü XOX</div>
+              <div class="card-title">❌⭕ Bubu vs Dudu Karşılıklı XOX</div>
               <span id="xoxTurnBadge" class="pill-tag">Sıra: 🐼 Bubu</span>
             </div>
             <div class="scoreboard-row">
               <div class="score-pill">
                 <span>🐼 Bubu Galibiyet:</span>
-                <span id="xoxScoreBubu">2</span>
+                <span id="xoxScoreBubu">0</span>
               </div>
-              <div class="score-pill khaki">
+              <div class="score-pill">
                 <span>🐻 Dudu Galibiyet:</span>
-                <span id="xoxScoreDudu">2</span>
+                <span id="xoxScoreDudu">0</span>
               </div>
             </div>
 
@@ -354,39 +343,155 @@
 
             <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:10px;">
               <button class="secondary-btn" onclick="resetXoxGame()">🔄 Yeni Tur Başlat</button>
-              <button class="primary-btn" onclick="playXoxBotMove()">🤖 Tek Başına Hamle Yap</button>
+              <button class="primary-btn" onclick="playXoxBotMove()">🤖 Bot Hamlesi Yap</button>
             </div>
           </div>
         </div>
 
-        <!-- OYUN 4: HAFIZA KARTLARI & SNAP ÇİFT UYUM SORULARI -->
+        <!-- OYUN 4: KARŞILIKLI CANLI HAFIZA KARTLARI & SNAP ÇİFT UYUM SORULARI -->
         <div id="game-quiz" class="game-panel">
           <div class="glass-card">
             <div class="card-header-row">
-              <div class="card-title">🃏 Bubu & Dudu Hafıza Eşleştirme</div>
-              <button class="secondary-btn" onclick="initMemoryMatchGame()">🔄 Karıştır</button>
+              <div class="card-title">🃏 Karşılıklı Hafıza Eşleştirme</div>
+              <span id="memoryTurnBadge" class="pill-tag">Sıra: 🐼 Bubu</span>
             </div>
-            <p style="font-size:12px; color:var(--text-muted); margin-bottom:6px;">
-              Kartları çevir ve Bubu ile Dudu'nun sevgi sembollerini en az hamlede eşleştir!
+            <div class="scoreboard-row">
+              <div class="score-pill">
+                <span>🐼 Bubu Eşleşme:</span>
+                <span id="memScoreBubu">0</span>
+              </div>
+              <div class="score-pill">
+                <span>🐻 Dudu Eşleşme:</span>
+                <span id="memScoreDudu">0</span>
+              </div>
+            </div>
+            <p style="font-size:11.5px; color:var(--text-muted); margin-bottom:6px;">
+              XOX gibi sırayla iki telefondan karşılıklı oynanır! Eşleşme bulan +1 puan alır ve sıra onda kalır, bulamazsa sıra sevgiline geçer.
             </p>
             <div id="memoryMatchGrid" class="memory-game-grid"></div>
-            <div id="memoryMatchStatus" style="font-size:12.5px; font-weight:800; text-align:center; color:var(--lilac-deep); margin-top:6px;">
-              Hamle: 0 • Eşleşen: 0 / 6
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+              <span id="memoryMatchStatus" style="font-size:12px; font-weight:800; color:var(--pink-main);">
+                Toplam Eşleşen: 0 / 6
+              </span>
+              <button class="secondary-btn" onclick="resetMultiplayerMemoryGame()">🔄 Kartları Karıştır & Yenile</button>
             </div>
           </div>
 
           <div class="glass-card">
             <div class="card-header-row">
               <div class="card-title">💑 Snapchat Çift Uyum Kartları</div>
-              <span class="pill-tag khaki">Canlı Eşleşme</span>
+              <button class="pill-tag pink" style="cursor:pointer;" onclick="openAddQuizModal()">+ Yeni Soru Ekle</button>
             </div>
+            <p style="font-size:11.5px; color:var(--text-muted); margin-bottom:10px;">
+              Kimin hangi cevabı verdiği gizlidir! İkiniz de cevapladığınızda aynı cevabı verdiyseniz <strong>%100 Uyum Tebrik Kartı</strong>, farklıysa <strong>Bi Dahaki Sefere Kartı</strong> açılır.
+            </p>
             <div id="coupleQuizContainer"></div>
+          </div>
+        </div>
+
+        <!-- OYUN 5: FOTOĞRAFLI KAFA HEDEFLİ DART OYUNU -->
+        <div id="game-dart" class="game-panel">
+          <div class="glass-card">
+            <div class="card-header-row">
+              <div class="card-title">🎯 Fotoğraflı Kafa Hedefli Dart</div>
+              <span id="dartLiveScoreBadge" class="pill-tag pink">5 Ok • 0 Puan</span>
+            </div>
+            <div class="scoreboard-row">
+              <div class="score-pill">
+                <span>🐼 Bubu Rekor:</span>
+                <span id="dartScoreBubu">0</span>
+              </div>
+              <div class="score-pill">
+                <span>🐻 Dudu Rekor:</span>
+                <span id="dartScoreDudu">0</span>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+              <label class="secondary-btn" style="flex:1; text-align:center; cursor:pointer;">
+                📸 Arka Plana Fotoğraf Koy
+                <input type="file" accept="image/*" style="display:none;" onchange="uploadDartTargetPhoto(event)" />
+              </label>
+              <button id="btnSetHeadMode" class="secondary-btn" onclick="toggleDartHeadPositionMode()">
+                🎯 Kafa Noktasını Seç
+              </button>
+            </div>
+
+            <div class="game-canvas-wrap">
+              <canvas id="dartCanvas" width="400" height="315"></canvas>
+              <div id="dartOverlay" class="game-overlay">
+                <div style="font-size:42px; margin-bottom:8px;">🎯📸💥</div>
+                <h3 style="font-size:16.5px; margin-bottom:6px;">Fotoğrafın Kafa Kısmına Tam İsabet Dart!</h3>
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">
+                  Yukarıdan bir fotoğraf yükle! Fotoğrafın <strong>kafa merkezine (🎯)</strong> dart isabet ettiğinde <strong>+100 TAM PUAN</strong> alırsın!
+                </p>
+                <button class="primary-btn" onclick="startDartGame()">🎯 Dart Atmaya Başla (5 Ok)</button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       <!-- =========================================================
-           SEKME 3: NOT YAZMA PANOSU & CANLI MESAJLAŞMA
+           SEKME 3: "BİZİM ŞARKILARIMIZ" MÜZİK ÇALAR
+           ========================================================= -->
+      <section id="tab-music" class="tab-pane">
+        <div class="glass-card">
+          <div class="card-header-row">
+            <div class="card-title">🎵 Bizim Şarkılarımız • Müzik Çalar</div>
+            <span id="songsCountBadge" class="pill-tag pink">0 Şarkı</span>
+          </div>
+
+          <!-- Aktif Çalan Şarkı Plak Kartı -->
+          <div class="music-player-hero">
+            <img id="nowPlayingCover" src="/assets/budu-icon.png" alt="Plak" class="vinyl-disc" />
+            <div style="flex:1; min-width:0;">
+              <div id="nowPlayingTitle" style="font-size:14.5px; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                Şarkı Seçin veya Ekleyin 🎶
+              </div>
+              <div id="nowPlayingArtist" style="font-size:12px; opacity:0.88; margin-top:2px;">
+                Bizim Şarkılarımız Listesi
+              </div>
+              <div class="music-controls-row">
+                <button class="music-ctrl-btn" onclick="playPrevSong()" title="Önceki Şarkı">⏮</button>
+                <button id="btnPlayPauseMain" class="music-ctrl-btn play-main" onclick="togglePlayCurrentSong()">▶</button>
+                <button class="music-ctrl-btn" onclick="playNextSong()" title="Sonraki Şarkı">⏭</button>
+              </div>
+            </div>
+          </div>
+          <audio id="mainAudioElement" preload="none" style="width:100%; height:32px; margin-bottom:10px;" controls></audio>
+
+          <!-- Şarkı Arama & Ekleme Alanı -->
+          <div class="form-group">
+            <label class="form-label">🔍 Şarkı veya Sanatçı Ara (Anında Çalınabilir Ekle):</label>
+            <div style="display:flex; gap:6px;">
+              <input id="musicSearchInput" type="text" class="form-input" placeholder="Örn: Yalın, Sezen Aksu, Dedublüman, Semicenk..." onkeydown="if(event.key==='Enter') searchMusicCatalog()" />
+              <button class="primary-btn" style="padding:10px 14px;" onclick="searchMusicCatalog()">Ara</button>
+            </div>
+          </div>
+          <div id="musicSearchResults" style="margin-bottom:12px;"></div>
+
+          <!-- Telefondan MP3 Yükleme veya Link ile Ekleme -->
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+            <label class="secondary-btn" style="flex:1; text-align:center; cursor:pointer;">
+              📁 Telefondan MP3 / Ses Yükle
+              <input type="file" accept="audio/*" style="display:none;" onchange="uploadCustomAudioFile(event)" />
+            </label>
+            <button class="secondary-btn" onclick="openManualSongModal()">🔗 Şarkı Linki ile Ekle</button>
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-header-row">
+            <div class="card-title">📀 Kayıtlı Şarkı Listemiz</div>
+            <span class="pill-tag khaki">Kalıcı Liste</span>
+          </div>
+          <div id="savedSongsList" class="affection-feed" style="max-height:none;"></div>
+        </div>
+      </section>
+
+      <!-- =========================================================
+           SEKME 4: NOT YAZMA PANOSU & CANLI MESAJLAŞMA
            ========================================================= -->
       <section id="tab-notes" class="tab-pane">
         <div class="subtab-switch">
@@ -394,17 +499,16 @@
           <button id="subBtnBoard" class="subtab-btn" onclick="switchCommSubtab('board')">💌 Aşk Notları Panosu</button>
         </div>
 
-        <!-- ALT SEKME A: CANLI MESAJLAŞMA (BUBU & DUDU CHAT) -->
+        <!-- ALT SEKME A: CANLI MESAJLAŞMA -->
         <div id="comm-chat" style="display:block;">
           <div class="glass-card" style="padding:12px;">
             <div class="chat-box-container">
               <div id="chatMessagesList" class="chat-messages-list"></div>
 
-              <div id="typingIndicatorBar" style="font-size:11px; color:var(--lilac-deep); font-weight:700; padding:2px 8px; display:none;">
+              <div id="typingIndicatorBar" style="font-size:11px; color:var(--pink-main); font-weight:700; padding:2px 8px; display:none;">
                 ✨ Aşkım yazıyor...
               </div>
 
-              <!-- Hızlı Bubu & Dudu Sticker Gönderme Çubuğu -->
               <div class="sticker-quick-bar">
                 <button class="sticker-pill" onclick="sendQuickSticker('kiss', '🐼💋 Sana kocaman öpücük!')">🐼💋 Öpücük</button>
                 <button class="sticker-pill" onclick="sendQuickSticker('hug', '🐻🤗 Sımsıkı sarıldım!')">🐻🤗 Sarılma</button>
@@ -413,7 +517,6 @@
                 <button class="sticker-pill" onclick="sendQuickSticker('love', '💖 Seni her şeyden çok seviyorum!')">💖 Seni Seviyorum</button>
               </div>
 
-              <!-- Mesaj Yazma ve Fotoğraf Gönderme Alanı -->
               <div class="chat-input-bar">
                 <label class="icon-btn" title="Sohbete Fotoğraf Gönder">
                   📷
@@ -433,7 +536,7 @@
           </div>
         </div>
 
-        <!-- ALT SEKME B: AŞK NOTLARI PANOSU (MANTAR PANO & ZARFLI NOT) -->
+        <!-- ALT SEKME B: AŞK NOTLARI PANOSU -->
         <div id="comm-board" style="display:none;">
           <div class="glass-card">
             <div class="card-header-row">
@@ -441,7 +544,7 @@
               <span class="pill-tag pink">Anında Bildirim Gider</span>
             </div>
             <div class="form-group">
-              <input id="noteTitleInput" type="text" class="form-input" placeholder="Not Başlığı (Örn: Günaydın Her Şeyim 🌸)" />
+              <input id="noteTitleInput" type="text" class="form-input" placeholder="Not Başlığı (Örn: Seni Çok Seviyorum 🍒)" />
             </div>
             <div class="form-group">
               <textarea id="noteContentInput" class="form-textarea" placeholder="İçinden geçen güzel sözleri buraya yaz..."></textarea>
@@ -450,6 +553,7 @@
               <div>
                 <label class="form-label">Not Kağıdı Rengi:</label>
                 <select id="noteColorSelect" class="form-select">
+                  <option value="visne">🍒 Vişne Çürüğü</option>
                   <option value="pink">🌸 Toz Pembe</option>
                   <option value="lilac">💜 Pastel Lila</option>
                   <option value="khaki">🌿 Adaçayı Haki</option>
@@ -465,13 +569,13 @@
                 </select>
               </div>
             </div>
-            <button class="primary-btn" style="width:100%;" onclick="createStickyNote()">💌 Notu Panoya Yapıştır & Gönder</button>
+            <button class="primary-btn" style="width:100%;" onclick="createStickyNote()">💌 Notu Panoya Yapıştır & Bildirim Gönder</button>
           </div>
 
           <div class="glass-card">
             <div class="card-header-row">
               <div class="card-title">📌 Ortak Aşk Notlarımız</div>
-              <span id="notesCountBadge" class="pill-tag khaki">2 Not</span>
+              <span id="notesCountBadge" class="pill-tag khaki">0 Not</span>
             </div>
             <div id="stickyNotesGrid" class="notes-grid"></div>
           </div>
@@ -479,10 +583,9 @@
       </section>
 
       <!-- =========================================================
-           SEKME 4: ORTAK TAKVİM, MANUEL GÖRSELLİ ANI EKLEME & ETKİNLİK PLANLAMA
+           SEKME 5: ORTAK TAKVİM, MANUEL GÖRSELLİ ANI EKLEME & ETKİNLİK PLANLAMA
            ========================================================= -->
       <section id="tab-calendar" class="tab-pane">
-        <!-- İnteraktif Takvim Kartı -->
         <div class="glass-card">
           <div class="calendar-header">
             <button class="icon-btn" onclick="changeCalendarMonth(-1)">◀</button>
@@ -498,7 +601,7 @@
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:11px; color:var(--text-muted); font-weight:700;">
             <span><span class="cal-dot memory-dot" style="display:inline-block;"></span> Fotoğraflı Anı</span>
             <span><span class="cal-dot event-dot" style="display:inline-block;"></span> Planlanan Etkinlik</span>
-            <span id="selectedDateLabel" style="color:var(--lilac-deep);">Seçili: Bugün</span>
+            <span id="selectedDateLabel" style="color:var(--pink-main);">Seçili: Bugün</span>
           </div>
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:12px;">
@@ -511,7 +614,6 @@
           </div>
         </div>
 
-        <!-- Yaklaşan Etkinlikler ve Hatırlatıcı Planlaması -->
         <div class="glass-card">
           <div class="card-header-row">
             <div class="card-title">⏰ Planlanan Etkinlikler & Hatırlatıcı</div>
@@ -520,7 +622,6 @@
           <div id="eventsListContainer" class="affection-feed" style="max-height:none;"></div>
         </div>
 
-        <!-- Manuel Eklenen Görselli Anılar Albümü -->
         <div class="glass-card">
           <div class="card-header-row">
             <div class="card-title">📸 Ortak Anı Albümümüz</div>
@@ -531,23 +632,50 @@
       </section>
 
       <!-- =========================================================
-           SEKME 5: ÇİFT AYARLARI, KARAKTER SEÇİMİ, RENK & IPHONE KURULUM
+           SEKME 6: ÇİFT AYARLARI, VİŞNE ÇÜRÜĞÜ RENK TEMALARI & ARKA PLAN BİLDİRİM
            ========================================================= -->
       <section id="tab-settings" class="tab-pane">
         <div class="glass-card">
           <div class="card-header-row">
-            <div class="card-title">🐼💕🐻 Karakter & Çift Eşleşme Ayarları</div>
-            <span class="pill-tag">İki Taraf Senkron</span>
+            <div class="card-title">🔔 Arka Plan & Kapalıyken Bildirim Sistemi</div>
+            <span id="pushStatusBadge" class="pill-tag pink">Aktif Et</span>
+          </div>
+          <p style="font-size:12px; color:var(--text-muted); line-height:1.45; margin-bottom:10px;">
+            Uygulama kapalıyken veya telefonun kilit ekranındayken bile her öpücük, yumruk, plan, anı, mesaj ve uyum kartında bildirim almak için aşağıdaki butona dokunup izin verin:
+          </p>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="primary-btn" style="flex:1;" onclick="enableBackgroundPushNotifications()">
+              🔔 Arka Plan Bildirimlerini Aç & Test Gönder
+            </button>
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-header-row">
+            <div class="card-title">🍒 Renk Kombinasyonları & Çift Ayarları</div>
+            <span class="pill-tag">Kalıcı Kayıt</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">🎨 Renk Kombinasyonu Seçimi (Vişne Çürüğü & Özel Temalar):</label>
+            <select id="selectColorTheme" class="form-select" onchange="applyThemeSelection(this.value)">
+              <option value="visne-curugu">🍒 Vişne Çürüğü & Gül Kurusu & Krem (Varsayılan)</option>
+              <option value="visne-haki">🍒🌿 Vişne Çürüğü & Adaçayı Haki</option>
+              <option value="pink-lilac-khaki">🌸💜🌿 Toz Pembe & Lavanta Lila & Haki</option>
+              <option value="gece-visne">🌙🍒 Gece Vişnesi & Koyu Lavanta</option>
+              <option value="karamel-visne">🧸🍒 Dudu Karamel & Vişne Çürüğü</option>
+              <option value="okyanus-pembe">🌊🌸 Okyanus Mavisi & Vişne & Sakura</option>
+            </select>
           </div>
 
           <div class="form-group">
             <label class="form-label">Benim Karakterim Seçimi:</label>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
               <button id="btnSelectBubu" class="primary-btn" onclick="setMyCharacter('bubu')">
-                🐼 Ben -> Bubu<br/><small style="font-weight:500;">(Aşkım -> Dudu)</small>
+                🐼 Ben -> Bubu
               </button>
               <button id="btnSelectDudu" class="secondary-btn" onclick="setMyCharacter('dudu')">
-                🐻 Ben -> Dudu<br/><small style="font-weight:500;">(Aşkım -> Bubu)</small>
+                🐻 Ben -> Dudu
               </button>
             </div>
           </div>
@@ -555,11 +683,11 @@
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
             <div class="form-group">
               <label class="form-label">🐼 Bubu'nun İsmi / Hitabı:</label>
-              <input id="inputBubuName" type="text" class="form-input" value="Bubu (Ben)" />
+              <input id="inputBubuName" type="text" class="form-input" value="Bubu" />
             </div>
             <div class="form-group">
               <label class="form-label">🐻 Dudu'nun İsmi / Hitabı:</label>
-              <input id="inputDuduName" type="text" class="form-input" value="Dudu (Aşkım)" />
+              <input id="inputDuduName" type="text" class="form-input" value="Dudu" />
             </div>
           </div>
 
@@ -570,48 +698,29 @@
             </div>
             <div class="form-group">
               <label class="form-label">💞 İlişki Başlangıç Tarihi:</label>
-              <input id="inputStartDate" type="date" class="form-input" value="2024-06-14" />
+              <input id="inputStartDate" type="date" class="form-input" value="2025-09-22" />
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">🎨 Pembe - Lila - Haki Renk Kombinasyonu:</label>
-            <select id="selectColorTheme" class="form-select" onchange="applyThemeSelection(this.value)">
-              <option value="pink-lilac-khaki">🌸💜🌿 Sakura Pembe + Lavanta Lila + Adaçayı Haki (Önerilen)</option>
-              <option value="lilac-khaki">💜🌿 Lila & Haki Pastel Dengesi</option>
-              <option value="romantic-pink">🌸🌿 Romantik Pembe & Haki</option>
-            </select>
-          </div>
-
-          <button class="primary-btn" style="width:100%;" onclick="saveCoupleSettings()">💾 Çift Ayarlarını Kaydet & Senkronize Et</button>
-        </div>
-
-        <div class="glass-card">
-          <div class="card-header-row">
-            <div class="card-title">📱 iPhone Bildirim & Ana Ekran Kurulumu</div>
-            <span class="pill-tag khaki">iOS Hazır</span>
-          </div>
-          <p style="font-size:12.5px; color:var(--text-muted); line-height:1.45; margin-bottom:10px;">
-            BuDuLove, iPhone'da <strong>Safari -> Paylaş -> Ana Ekrana Ekle</strong> adımıyla tam ekran iOS uygulaması olarak çalışır ve sevgi/etkinlik bildirimleri gönderir.
-          </p>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="primary-btn" onclick="requestIosNotifications()">🔔 Bildirimlere İzin Ver & Test Et</button>
-            <button class="secondary-btn" onclick="openQrModal()">📲 iPhone QR Kodu Göster</button>
-          </div>
+          <button class="primary-btn" style="width:100%;" onclick="saveCoupleSettings()">💾 Çift Ayarlarını Kalıcı Kaydet</button>
         </div>
       </section>
 
     </main>
 
-    <!-- Alt iOS Sekme Çubuğu (Tab Bar) -->
+    <!-- Alt iOS Sekme Çubuğu (6 Sekme) -->
     <nav class="ios-tabbar">
       <button class="tab-btn active" data-target="tab-home" onclick="switchTab('tab-home')">
         <span class="tab-icon">🐼💕</span>
         <span>Bubu&Dudu</span>
       </button>
       <button class="tab-btn" data-target="tab-games" onclick="switchTab('tab-games')">
-        <span class="tab-icon">🎈🎮</span>
+        <span class="tab-icon">🎮🎯</span>
         <span>Oyunlar</span>
+      </button>
+      <button class="tab-btn" data-target="tab-music" onclick="switchTab('tab-music')">
+        <span class="tab-icon">🎵📀</span>
+        <span>Şarkımız</span>
       </button>
       <button class="tab-btn" data-target="tab-notes" onclick="switchTab('tab-notes')">
         <span class="tab-icon">💌💬</span>
@@ -622,14 +731,97 @@
         <span>Takvim&Anı</span>
       </button>
       <button class="tab-btn" data-target="tab-settings" onclick="switchTab('tab-settings')">
-        <span class="tab-icon">⚙️📱</span>
-        <span>Çift&iPhone</span>
+        <span class="tab-icon">🍒⚙️</span>
+        <span>Ayarlar</span>
       </button>
     </nav>
   </div>
 
   <!-- =========================================================
-       MODAL 1: TAKVİME MANUEL GÖRSELLİ ANI EKLEME
+       MODAL: OYUN KAZANAN BÜYÜK TEBRİK KARTI ("TEBRİKLER BUBU / DUDU KAZANDI!")
+       ========================================================= -->
+  <div id="winnerCelebrationModal" class="modal-backdrop">
+    <div class="modal-card winner-celebration-card">
+      <div id="winnerEmojiHero" style="font-size:64px; margin-bottom:6px;">🏆🐼🎉</div>
+      <div id="winnerGameLabel" class="pill-tag pink" style="display:inline-block; margin-bottom:8px;">Aşk XOX Oyunu</div>
+      <h2 id="winnerMainHeading" style="font-size:22px; font-weight:900; color:var(--pink-deep); margin-bottom:6px;">
+        🎉 TEBRİKLER! BUBU KAZANDI!
+      </h2>
+      <p id="winnerSubText" style="font-size:13.5px; color:var(--text-dark); font-weight:700; margin-bottom:12px;">
+        Harika bir oyun çıkardın!
+      </p>
+      <div style="background:rgba(255,255,255,0.9); padding:12px; border-radius:16px; border:1.5px solid var(--pink-soft); margin-bottom:16px;">
+        <div style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">🎁 Kazanılan Ödül / Unvan</div>
+        <div id="winnerRewardText" style="font-size:14.5px; font-weight:900; color:var(--pink-main); margin-top:3px;">
+          100 Öpücük & Kahve Ismarlama 🧋
+        </div>
+      </div>
+      <button class="primary-btn" style="width:100%;" onclick="closeModal('winnerCelebrationModal')">
+        🥳 Harika! Kutlamayı Kapat
+      </button>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       MODAL: YENİ ÇİFT UYUM SORUSU EKLEME
+       ========================================================= -->
+  <div id="addQuizModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="card-header-row">
+        <div class="card-title">💑 Yeni Çift Uyum Sorusu Ekle</div>
+        <button class="delete-mini-btn" onclick="closeModal('addQuizModal')">✕</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">❓ Sorunuz:</label>
+        <input id="newQuizQuestionInput" type="text" class="form-input" placeholder="Örn: İlk buluşmamızda kim daha heyecanlıydı?" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Seçenek 1:</label>
+        <input id="newQuizOpt1" type="text" class="form-input" value="Bubu 🐼" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Seçenek 2:</label>
+        <input id="newQuizOpt2" type="text" class="form-input" value="Dudu 🐻" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Seçenek 3:</label>
+        <input id="newQuizOpt3" type="text" class="form-input" value="İkimiz de Aynı Anda 💞" />
+      </div>
+      <button class="primary-btn" style="width:100%;" onclick="saveNewQuizQuestion()">💖 Soruyu Ekle & Sevgilime Bildirim Gönder</button>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       MODAL: MANUEL ŞARKI LİNKİ EKLEME ("BİZİM ŞARKILARIMIZ")
+       ========================================================= -->
+  <div id="manualSongModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="card-header-row">
+        <div class="card-title">🎵 Bizim Şarkılarımıza Şarkı Ekle</div>
+        <button class="delete-mini-btn" onclick="closeModal('manualSongModal')">✕</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">🎶 Şarkı Adı:</label>
+        <input id="songTitleInput" type="text" class="form-input" placeholder="Örn: Bizim Şarkımız" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">🎤 Sanatçı:</label>
+        <input id="songArtistInput" type="text" class="form-input" placeholder="Örn: Sezen Aksu" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">🔗 MP3 / Ses Bağlantısı (URL):</label>
+        <input id="songUrlInput" type="text" class="form-input" placeholder="https://..." />
+      </div>
+      <div class="form-group">
+        <label class="form-label">💌 Şarkı Notumuz:</label>
+        <input id="songNoteInput" type="text" class="form-input" placeholder="Örn: Bu şarkı her çaldığında aklımdasın..." />
+      </div>
+      <button class="primary-btn" style="width:100%;" onclick="saveManualSong()">🎵 Listeye Kaydet & Bildirim Gönder</button>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       MODAL: TAKVİME MANUEL GÖRSELLİ ANI EKLEME
        ========================================================= -->
   <div id="memoryModal" class="modal-backdrop">
     <div class="modal-card">
@@ -643,7 +835,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">✨ Anı Başlığı:</label>
-        <input id="memTitleInput" type="text" class="form-input" placeholder="Örn: İlk Deniz Kenarı Yürüyüşümüz 🌊" />
+        <input id="memTitleInput" type="text" class="form-input" placeholder="Örn: Unutulmaz Buluşmamız 💕" />
       </div>
       <div class="form-group">
         <label class="form-label">🖼️ Anı Görseli Seç (iPhone Galeri / Kamera):</label>
@@ -662,19 +854,19 @@
         </div>
         <div class="form-group">
           <label class="form-label">📍 Konum:</label>
-          <input id="memLocationInput" type="text" class="form-input" placeholder="Örn: Sahil Kafesi" />
+          <input id="memLocationInput" type="text" class="form-input" placeholder="Örn: Sahil" />
         </div>
       </div>
       <div class="form-group">
         <label class="form-label">📝 Anı Hikayemiz:</label>
         <textarea id="memDescInput" class="form-textarea" placeholder="O gün neler hissettik, neler yaptık?"></textarea>
       </div>
-      <button class="primary-btn" style="width:100%;" onclick="saveNewMemory()">💖 Anıyı Takvime & Albüme Kaydet</button>
+      <button class="primary-btn" style="width:100%;" onclick="saveNewMemory()">💖 Anıyı Kaydet & Bildirim Gönder</button>
     </div>
   </div>
 
   <!-- =========================================================
-       MODAL 2: ETKİNLİK PLANLAMA & YAKLAŞAN TARİH HATIRLATICISI
+       MODAL: ETKİNLİK PLANLAMA & YAKLAŞAN TARİH HATIRLATICISI
        ========================================================= -->
   <div id="eventModal" class="modal-backdrop">
     <div class="modal-card">
@@ -718,14 +910,14 @@
       </div>
       <div class="form-group">
         <label class="form-label">📝 Etkinlik Detayı / Notu:</label>
-        <textarea id="evtDescInput" class="form-textarea" placeholder="Nereye gideceğiz, ne giyeceğiz, sürpriz not..."></textarea>
+        <textarea id="evtDescInput" class="form-textarea" placeholder="Detaylar..."></textarea>
       </div>
-      <button class="primary-btn" style="width:100%;" onclick="saveNewEvent()">⏰ Etkinliği Planla & İki Tarafa Hatırlat</button>
+      <button class="primary-btn" style="width:100%;" onclick="saveNewEvent()">⏰ Etkinliği Planla & Bildirim Gönder</button>
     </div>
   </div>
 
   <!-- =========================================================
-       MODAL 3: IPHONE QR KODU & KURULUM REHBERİ
+       MODAL: IPHONE QR KODU & KURULUM REHBERİ
        ========================================================= -->
   <div id="qrModal" class="modal-backdrop">
     <div class="modal-card" style="text-align:center;">
@@ -733,28 +925,21 @@
         <div class="card-title">📱 iPhone'da Çalıştırma & Eşleşme</div>
         <button class="delete-mini-btn" onclick="closeModal('qrModal')">✕</button>
       </div>
-      <p style="font-size:12.5px; color:var(--text-muted); margin-bottom:10px;">
-        iPhone kameranı açıp aşağıdaki QR kodu okutarak uygulamayı hemen iPhone Safari'de açabilirsin:
-      </p>
       <div style="background:#fff; padding:12px; border-radius:20px; display:inline-block; border:2px solid var(--pink-soft); margin-bottom:10px;">
         <img id="qrCodeImg" src="" alt="iPhone QR Kodu" style="width:200px; height:200px; display:block;" />
       </div>
-      <div id="qrUrlDisplay" style="font-size:13px; font-weight:800; color:var(--lilac-deep); margin-bottom:10px; word-break:break-all;"></div>
+      <div id="qrUrlDisplay" style="font-size:13px; font-weight:800; color:var(--pink-main); margin-bottom:10px; word-break:break-all;"></div>
       <div style="text-align:left; background:var(--khaki-light); padding:12px; border-radius:16px; font-size:12px; line-height:1.5; color:var(--text-dark);">
-        <strong>🍏 iPhone Ana Ekranına Uygulama Olarak Ekleme:</strong><br/>
-        1. iPhone kamerasıyla QR kodu okutup <strong>Safari</strong>'de açın.<br/>
-        2. Alttaki <strong>Paylaş (Kare ve Yukarı Ok)</strong> simgesine dokunun.<br/>
-        3. <strong>"Ana Ekrana Ekle" (Add to Home Screen)</strong> seçeneğine basın.<br/>
-        4. Artık iPhone ana ekranınızda <strong>BuDuLove</strong> ikonuyla tam ekran uygulama olarak çalışır!
-      </div>
-      <div style="margin-top:12px;">
-        <a href="/studio.html" target="_blank" class="secondary-btn" style="text-decoration:none; display:inline-block;">💻 Yan Yana 2 iPhone Test Stüdyosunu Aç</a>
+        <strong>🍏 iPhone Ana Ekranına & Arka Plan Bildirimlerine Ekleme:</strong><br/>
+        1. Safari'de alttaki <strong>Paylaş -> "Ana Ekrana Ekle"</strong> seçeneğine basın.<br/>
+        2. Ana ekrana eklenen <strong>BuDuLove</strong> uygulamasını açıp üstteki <strong>🔔</strong> butonuna basarak bildirim izni verin.<br/>
+        3. Artık uygulama kapalıyken bile tüm bildirimler kilit ekranınıza düşer!
       </div>
     </div>
   </div>
 
   <!-- =========================================================
-       MODAL 4: BUBU & DUDU HİKAYESİ (HUANG XIAO B. - 2018)
+       MODAL: BUBU & DUDU HİKAYESİ
        ========================================================= -->
   <div id="storyModal" class="modal-backdrop">
     <div class="modal-card">
@@ -766,16 +951,16 @@
         <strong>Bubu ve Dudu</strong>, Çinli sanatçı <strong>Huang Xiao B.</strong> tarafından <strong>Haziran 2018'de Weibo'da</strong> ortaya çıkarılan, günlük sevimli maceraları ve sıcacık aşk hikayeleriyle tüm dünyada çiftlerin kalbini kazanan kurgusal çizgi karakter ikilisidir.
       </p>
       <div style="background:var(--pink-light); padding:11px; border-radius:14px; margin-bottom:8px; font-size:12.5px;">
-        <strong>🐼 Bubu (Yier / Beyaz Panda):</strong> Sevimli, duygusal, tatlı krizlerine giren, Dudu'nun ilgisine ve sarılmasına bayılan tombul beyaz panda.
+        <strong>🐼 Bubu:</strong> Sevimli, duygusal, Dudu'nun ilgisine ve sarılmasına bayılan tombul beyaz panda.
       </div>
       <div style="background:var(--khaki-light); padding:11px; border-radius:14px; font-size:12.5px;">
-        <strong>🐻 Dudu (Bubu'nun Ayıcığı):</strong> Sıcakkanlı, sabırlı, Bubu'ya yemekler ve bubble tea ikram eden, onu her zaman koruyan ve yanaklarını mıncıran tombul kahverengi ayıcık.
+        <strong>🐻 Dudu:</strong> Sıcakkanlı, sabırlı, Bubu'ya yemekler ve bubble tea ikram eden tombul kahverengi ayıcık.
       </div>
     </div>
   </div>
 
   <!-- =========================================================
-       MODAL 5: TELEFONDA TEK KARAKTER SEÇİM EKRANI (BUBU VEYA DUDU)
+       MODAL: TELEFONDA TEK KARAKTER SEÇİM EKRANI
        ========================================================= -->
   <div id="charSelectModal" class="modal-backdrop">
     <div class="modal-card" style="text-align:center;">
@@ -784,7 +969,7 @@
         <button class="delete-mini-btn" onclick="closeModal('charSelectModal')">✕</button>
       </div>
       <p style="font-size:12.5px; color:var(--text-muted); margin-bottom:14px;">
-        Seçtiğin karakter telefon ekranında <strong>tek başına</strong> yer alır. Gönderdiğin öpücük ve dokunuşlar sevgilinin telefonuna bildirim olarak gider!
+        Seçtiğin karakter telefon ekranında <strong>tek başına</strong> yer alır.
       </p>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:10px;">
         <div
@@ -810,6 +995,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/app.js?v=2"></script>
+  <script src="/js/app.js?v=4"></script>
 </body>
 </html>
