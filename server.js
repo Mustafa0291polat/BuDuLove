@@ -168,23 +168,7 @@ function getDefaultRoomData(roomCode = 'BUDU-2026') {
         scores: { bubu: 0, dudu: 0 },
         winner: null
       },
-      quizQuestions: [
-        {
-          id: 'q0',
-          question: '1. Aramızda ilk kim trip atar veya tatlıca küser? 🥺',
-          options: ['Bubu 🐼', 'Dudu 🐻', 'İkimiz de Aynı Anda 😂']
-        },
-        {
-          id: 'q1',
-          question: '2. İdeal baş başa akşam planımız hangisi? 🌙',
-          options: ['Sarılıp Film İzlemek 🍿', 'Dışarıda Tatlı & Kahve 🧋', 'Gece Yürüyüşü & Sohbet 🌌']
-        },
-        {
-          id: 'q2',
-          question: '3. Kim daha çok öpücük ve sarılma bağımlısı? 💋',
-          options: ['Kesinlikle Bubu 🐼', 'Kesinlikle Dudu 🐻', 'İkimiz de Doyamıyoruz 💖']
-        }
-      ],
+      quizQuestions: [],
       quizAnswers: {}
     }
   };
@@ -250,7 +234,9 @@ function ensureRoomStructure(room) {
     room.games.memoryMatch = def.games.memoryMatch;
   }
   if (!Array.isArray(room.games.quizQuestions)) {
-    room.games.quizQuestions = def.games.quizQuestions;
+    room.games.quizQuestions = [];
+  } else {
+    room.games.quizQuestions = room.games.quizQuestions.filter((q) => q && !['q0', 'q1', 'q2'].includes(q.id));
   }
   if (!room.games.quizAnswers) room.games.quizAnswers = {};
   return room;
@@ -874,7 +860,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('add_quiz_question', ({ roomCode, question, options, fromChar, fromName }) => {
+    socket.on('add_quiz_question', ({ roomCode, question, options, fromChar, fromName }) => {
     const room = getRoom(roomCode || currentRoomCode);
     if (!Array.isArray(room.games.quizQuestions)) room.games.quizQuestions = [];
     const newQ = {
@@ -891,6 +877,16 @@ io.on('connection', (socket) => {
       body: `"${question}" — Hemen girip cevabını seç!`,
       fromChar
     });
+  });
+
+  socket.on('delete_quiz_question', ({ roomCode, questionId }) => {
+    const room = getRoom(roomCode || currentRoomCode);
+    if (Array.isArray(room.games.quizQuestions)) {
+      room.games.quizQuestions = room.games.quizQuestions.filter((q) => q.id !== questionId);
+    }
+    if (!room.deletedIds.includes(questionId)) room.deletedIds.push(questionId);
+    saveDB(db);
+    io.to(room.roomCode).emit('room_state', room);
   });
 
   // 3) AŞK NOTLARI & CANLI MESAJLAŞMA

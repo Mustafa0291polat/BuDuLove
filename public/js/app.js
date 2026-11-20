@@ -704,7 +704,7 @@ function setMyCharacter(charName) {
 function updateCharacterRoleUI() {
   const isBubu = myCharacter === 'bubu';
   document.getElementById('myCharEmoji').textContent = isBubu ? '🐼' : '🐻';
-  document.getElementById('myCharText').textContent = isBubu ? 'Bubu' : 'Dudu';
+  document.getElementById('myCharText').textContent = isBubu ? 'Ben: Bubu' : 'Ben: Dudu';
 
   const cardMe = document.getElementById('cardRoleMe');
   if (cardMe) {
@@ -712,23 +712,26 @@ function updateCharacterRoleUI() {
   }
 
   document.getElementById('meAvatarBox').textContent = isBubu ? '🐼' : '🐻';
-  document.getElementById('meCharDisplay').textContent = isBubu ? `${getMyDisplayName()} 🐼` : `${getMyDisplayName()} 🐻`;
+  document.getElementById('meCharDisplay').textContent = isBubu
+    ? `Ben: ${getMyDisplayName()} 🐼`
+    : `Ben: ${getMyDisplayName()} 🐻`;
   document.getElementById('meNicknameDisplay').textContent = isBubu
-    ? 'Bubu • Sevimli Beyaz Panda (Sadece Bubu Gösteriliyor)'
-    : 'Dudu • Tatlı Kahve Ayıcık (Sadece Dudu Gösteriliyor)';
+    ? 'Sevmek için aşağıda sevgilin Dudu 🐻 ekranda!'
+    : 'Sevmek için aşağıda sevgilin Bubu 🐼 ekranda!';
 
+  // Ben Bubu isem sevmem için ekranda Dudu görünür; Ben Dudu isem sevmem için ekranda Bubu görünür!
   const stageBubu = document.getElementById('stageCharBubu');
   const stageDudu = document.getElementById('stageCharDudu');
   if (stageBubu && stageDudu) {
-    stageBubu.style.display = isBubu ? 'flex' : 'none';
-    stageDudu.style.display = !isBubu ? 'flex' : 'none';
+    stageDudu.style.display = isBubu ? 'flex' : 'none';
+    stageBubu.style.display = !isBubu ? 'flex' : 'none';
   }
 
   const stageSpeech = document.getElementById('stageSpeech');
   if (stageSpeech) {
     stageSpeech.textContent = isBubu
-      ? '🐼 Bubu\'ya dokun veya sevgiline (Dudu\'ya) bildirim gönder!'
-      : '🐻 Dudu\'ya dokun veya sevgiline (Bubu\'ya) bildirim gönder!';
+      ? '🐻 Sevgilin Dudu\'ya dokun, sev ve öpücük gönder! 💕'
+      : '🐼 Sevgilin Bubu\'ya dokun, sev ve öpücük gönder! 💕';
   }
 
   const btnBubu = document.getElementById('btnSelectBubu');
@@ -1095,7 +1098,7 @@ function startBalloonGame() {
         socket.emit('update_game_score', {
           roomCode: currentRoomCode,
           gameKey: 'balloonScores',
-          gameTitle: 'Kalp Balon Patlatma 🎈',
+          gameTitle: 'Balon Patlatma 🎈',
           character: myCharacter,
           playerName: getMyDisplayName(),
           score
@@ -1250,7 +1253,7 @@ function startRushGame() {
         socket.emit('update_game_score', {
           roomCode: currentRoomCode,
           gameKey: 'loveRushScores',
-          gameTitle: 'Snap Öpücük Oyunu ⚡',
+          gameTitle: 'Aşk Emoji ⚡',
           character: myCharacter,
           playerName: getMyDisplayName(),
           score
@@ -1389,12 +1392,18 @@ function resetMultiplayerMemoryGame() {
   }
 }
 
-// --- OYUN 4B: SNAPCHAT ÇİFT UYUM KARTLARI (CEVAPLAR GİZLİ + UYUM SONUÇ KARTI) ---
+// --- OYUN 4B: ÇİFT UYUM KARTLARI (MEVCUT RASTGELE KARTLAR KALDIRILDI, CEVAPLAR GİZLİ) ---
 function renderCoupleQuiz() {
   const container = document.getElementById('coupleQuizContainer');
   if (!container || !roomState) return;
-  const questions = roomState.games?.quizQuestions || [];
+  const rawQuestions = roomState.games?.quizQuestions || [];
+  const questions = rawQuestions.filter((q) => q && !['q0', 'q1', 'q2'].includes(q.id));
   const answers = roomState.games?.quizAnswers || {};
+
+  if (questions.length === 0) {
+    container.innerHTML = `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:14px;">Henüz çift uyum kartı eklenmedi. Sağ üstteki <strong>"+ Yeni Soru Ekle"</strong> butonuna basarak kendi uyum sorularınızı ekleyebilirsiniz! 💑</div>`;
+    return;
+  }
 
   container.innerHTML = questions.map((q) => {
     const qAns = answers[q.id] || {};
@@ -1425,7 +1434,10 @@ function renderCoupleQuiz() {
 
     return `
       <div style="background:rgba(255,255,255,0.82); padding:13px; border-radius:18px; margin-bottom:11px; border:1.5px solid var(--pink-soft);">
-        <div style="font-size:13px; font-weight:800; margin-bottom:9px;">${escapeHtml(q.question)}</div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:9px;">
+          <div style="font-size:13px; font-weight:800;">${escapeHtml(q.question)}</div>
+          <button class="delete-mini-btn" onclick="deleteQuizQuestion('${q.id}')" title="Soruyu Sil">🗑️</button>
+        </div>
         <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
           ${(q.options || []).map((opt) => `
             <button
@@ -1444,6 +1456,15 @@ function renderCoupleQuiz() {
       </div>
     `;
   }).join('');
+}
+
+function deleteQuizQuestion(questionId) {
+  if (socket && socket.connected) {
+    socket.emit('delete_quiz_question', {
+      roomCode: currentRoomCode,
+      questionId
+    });
+  }
 }
 
 function submitQuizAnswer(questionId, answer) {
