@@ -1689,3 +1689,105 @@ html, body {
   0% { transform: scale(0.7); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
 }
+
+/* =========================================================
+   ÖZEL ÇİFT PIN KİLİT EKRANI (iOS LOCK SCREEN)
+   ========================================================= */
+.pin-lock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  background: linear-gradient(155deg, var(--pink-deep) 0%, var(--pink-main) 50%, var(--lilac-deep) 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.pin-lock-overlay.unlocked {
+  display: none;
+}
+
+.pin-lock-card {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pin-lock-logo {
+  width: 74px;
+  height: 74px;
+  border-radius: 22px;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+  margin-bottom: 12px;
+}
+
+.pin-dots-row {
+  display: flex;
+  gap: 14px;
+  margin: 18px 0 10px;
+}
+
+.pin-dots-row.shake {
+  animation: stagePunchShake 0.45s ease;
+}
+
+.pin-dot {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: transparent;
+  transition: all 0.15s ease;
+}
+
+.pin-dot.filled {
+  background: #fff;
+  transform: scale(1.15);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+}
+
+.pin-error-msg {
+  min-height: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #FFD6E0;
+  margin-bottom: 10px;
+}
+
+.pin-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  width: 100%;
+  max-width: 270px;
+  margin-top: 6px;
+}
+
+.pin-key-btn {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.pin-key-btn:active {
+  transform: scale(0.9);
+  background: rgba(255, 255, 255, 0.38);
+}

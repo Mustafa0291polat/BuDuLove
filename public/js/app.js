@@ -162,6 +162,134 @@ function loadLocalBackup() {
 }
 
 // ============================================================================
+// ÖZEL ÇİFT PIN KİLİT SİSTEMİ (ŞİFRE: 220925)
+// ============================================================================
+let currentPinInput = '';
+
+function getAuthToken() {
+  return localStorage.getItem('budu_auth_token_' + currentRoomCode) || '';
+}
+
+function setAuthToken(token) {
+  if (token) {
+    localStorage.setItem('budu_auth_token_' + currentRoomCode, token);
+  } else {
+    localStorage.removeItem('budu_auth_token_' + currentRoomCode);
+  }
+}
+
+function updatePinDotsUI() {
+  const dots = document.querySelectorAll('#pinDotsRow .pin-dot');
+  dots.forEach((dot, idx) => {
+    dot.classList.toggle('filled', idx < currentPinInput.length);
+  });
+}
+
+function pressPinDigit(d) {
+  if (currentPinInput.length >= 6) return;
+  currentPinInput += String(d);
+  playCuteSound('pop');
+  document.getElementById('pinErrorMsg').textContent = '';
+  updatePinDotsUI();
+  if (currentPinInput.length === 6) {
+    setTimeout(submitPinLogin, 120);
+  }
+}
+
+function clearPinDigits() {
+  currentPinInput = currentPinInput.slice(0, -1);
+  playCuteSound('pop');
+  updatePinDotsUI();
+}
+
+async function submitPinLogin() {
+  if (!currentPinInput) return;
+  try {
+    const res = await fetch('/api/auth/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        roomCode: currentRoomCode,
+        pin: currentPinInput
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      playCuteSound('win');
+      setAuthToken(data.authToken);
+      currentPinInput = '';
+      updatePinDotsUI();
+      document.getElementById('pinLockOverlay').classList.add('unlocked');
+
+      if (socket && socket.connected) {
+        socket.emit('join_room', {
+          roomCode: currentRoomCode,
+          character: myCharacter,
+          userName: getMyDisplayName(),
+          clientBackup: loadLocalBackup(),
+          authToken: data.authToken
+        });
+      }
+
+      if (!forcedRole && !localStorage.getItem(storagePrefix + 'charChosenOnce')) {
+        openCharSelectModal();
+      }
+    } else {
+      playCuteSound('punch');
+      const row = document.getElementById('pinDotsRow');
+      row.classList.remove('shake');
+      void row.offsetWidth;
+      row.classList.add('shake');
+      document.getElementById('pinErrorMsg').textContent = data.error || 'Hatalı PIN şifresi!';
+      currentPinInput = '';
+      updatePinDotsUI();
+    }
+  } catch (err) {
+    document.getElementById('pinErrorMsg').textContent = 'Bağlantı hatası, tekrar deneyin.';
+  }
+}
+
+function lockAppManually() {
+  setAuthToken('');
+  currentPinInput = '';
+  updatePinDotsUI();
+  document.getElementById('pinErrorMsg').textContent = '';
+  document.getElementById('pinLockOverlay').classList.remove('unlocked');
+}
+
+async function changeCouplePin() {
+  const oldPin = document.getElementById('inputOldPin').value.trim();
+  const newPin = document.getElementById('inputNewPin').value.trim();
+  if (!newPin || newPin.length < 4) {
+    showIosBanner('🔐⚠️', 'Geçersiz Yeni PIN', 'Yeni PIN şifresi en az 4-6 haneli olmalıdır.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/auth/change-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        roomCode: currentRoomCode,
+        oldPin,
+        newPin,
+        authToken: getAuthToken()
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      setAuthToken(data.authToken);
+      document.getElementById('inputOldPin').value = '';
+      document.getElementById('inputNewPin').value = '';
+      showIosBanner('🔐✅', 'PIN Şifresi Güncellendi!', 'Yeni çift PIN şifreniz kalıcı olarak kaydedildi.');
+    } else {
+      showIosBanner('🔐❌', 'Hata', data.error || 'Mevcut PIN doğrulanamadı.');
+    }
+  } catch (err) {
+    showIosBanner('🔐❌', 'Bağlantı Hatası', 'PIN güncellenemedi.');
+  }
+}
+
+// ============================================================================
 // BAŞLANGIÇ & BAĞLANTI
 // ============================================================================
 window.addEventListener('DOMContentLoaded', () => {
@@ -169,11 +297,28 @@ window.addEventListener('DOMContentLoaded', () => {
   const savedTheme = localStorage.getItem('budu_theme') || 'visne-curugu';
   applyThemeSelection(savedTheme, false);
 
-  // Önce yerel veritabanı yedeğini yükle
-  const cached = loadLocalBackup();
-  if (cached) {
-    roomState = cached;
-    renderAllFromState();
+  // Klavyeden PIN girişi desteği
+  window.addEventListener('keydown', (e) => {
+    const lockEl = document.getElementById('pinLockOverlay');
+    if (!lockEl || lockEl.classList.contains('unlocked')) return;
+    if (/^[0-9]$/.test(e.key)) {
+      pressPinDigit(e.key);
+    } else if (e.key === 'Backspace') {
+      clearPinDigits();
+    } else if (e.key === 'Enter') {
+      submitPinLogin();
+    }
+  });
+
+  // Eğer bu cihazda daha önce doğrulanmış token varsa kilit ekranını aç ve arka planda doğrula
+  const existingToken = getAuthToken();
+  if (existingToken) {
+    document.getElementById('pinLockOverlay').classList.add('unlocked');
+    const cached = loadLocalBackup();
+    if (cached) {
+      roomState = cached;
+      renderAllFromState();
+    }
   }
 
   initServiceWorkerAndPush();
@@ -187,10 +332,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Her dakika gün sayacını kontrol et (Gece yarısı geçince otomatik +1 gün artsın)
   setInterval(updateTogetherDaysCounter, 60000);
-
-  if (!forcedRole && !localStorage.getItem(storagePrefix + 'charChosenOnce')) {
-    openCharSelectModal();
-  }
 });
 
 // ============================================================================
@@ -299,19 +440,30 @@ function initSocketConnection() {
     socket = io();
 
     socket.on('connect', () => {
+      const token = getAuthToken();
+      if (!token) return;
       const clientBackup = loadLocalBackup();
       socket.emit('join_room', {
         roomCode: currentRoomCode,
         character: myCharacter,
         userName: getMyDisplayName(),
-        clientBackup
+        clientBackup,
+        authToken: token
       });
+    });
+
+    socket.on('auth_required', () => {
+      setAuthToken('');
+      document.getElementById('pinLockOverlay').classList.remove('unlocked');
     });
 
     socket.on('room_state', (room) => {
       roomState = room;
       saveLocalBackup(roomState);
       renderAllFromState();
+      if (!forcedRole && !localStorage.getItem(storagePrefix + 'charChosenOnce')) {
+        openCharSelectModal();
+      }
     });
 
     socket.on('tunnel_ready', () => {

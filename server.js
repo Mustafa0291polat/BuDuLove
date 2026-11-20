@@ -3,6 +3,7 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 const cors = require('cors');
 const { Server } = require('socket.io');
@@ -36,6 +37,54 @@ let tunnelStatus = 'starting';
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
+
+// ============================================================================
+// GÜVENLİK KATMANI: SHA-256 PIN ŞİFRELEME, HMAC TOKEN VE BRUTE-FORCE KORUMASI
+// ============================================================================
+const DEFAULT_PIN = process.env.COUPLE_DEFAULT_PIN || '220925';
+const AUTH_SECRET = process.env.AUTH_SECRET || 'budulove-private-couple-secret-20250922-v1';
+const failedPinAttempts = new Map(); // IP -> { count, lockUntil }
+
+function hashPin(pinStr) {
+  return crypto.createHash('sha256').update(String(pinStr || '').trim() + ':' + AUTH_SECRET).digest('hex');
+}
+
+function createAuthToken(roomCode, pinHash) {
+  const code = String(roomCode || 'BUDU-2026').trim().toUpperCase();
+  return crypto.createHmac('sha256', AUTH_SECRET).update(`${code}:${pinHash}`).digest('hex');
+}
+
+function getRoomPinHash(room) {
+  if (room && room.coupleInfo && room.coupleInfo.pinHash) {
+    return room.coupleInfo.pinHash;
+  }
+  return hashPin(DEFAULT_PIN);
+}
+
+function verifyRoomAuth(room, { pin, authToken } = {}) {
+  const expectedPinHash = getRoomPinHash(room);
+  const expectedToken = createAuthToken(room.roomCode, expectedPinHash);
+  if (authToken && authToken === expectedToken) return true;
+  if (pin && hashPin(pin) === expectedPinHash) return true;
+  return false;
+}
+
+function sanitizeRoomForClient(room) {
+  if (!room) return room;
+  const copy = { ...room, coupleInfo: { ...(room.coupleInfo || {}) } };
+  delete copy.coupleInfo.pinHash;
+  delete copy.pushSubscriptions;
+  return copy;
+}
+
+// HTTP Güvenlik Başlıkları (Security Headers)
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=()');
+  next();
+});
 
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
@@ -381,9 +430,80 @@ app.get('/api/info', async (req, res) => {
   }
 });
 
+// PIN Şifre Doğrulama ve Brute-Force Koruması Endpointi
+app.post('/api/auth/verify', (req, res) => {
+  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const attemptRecord = failedPinAttempts.get(clientIp);
+
+  if (attemptRecord && attemptRecord.lockUntil && now < attemptRecord.lockUntil) {
+    const waitMin = Math.ceil((attemptRecord.lockUntil - now) / 60000);
+    return res.status(429).json({
+      success: false,
+      error: `Çok fazla hatalı şifre denemesi! Güvenlik için ${waitMin} dakika engellendiniz.`
+    });
+  }
+
+  const roomCode = (req.body.roomCode || 'BUDU-2026').trim().toUpperCase();
+  const pin = String(req.body.pin || '').trim();
+  const authToken = req.body.authToken;
+  const room = getRoom(roomCode);
+
+  if (verifyRoomAuth(room, { pin, authToken })) {
+    failedPinAttempts.delete(clientIp);
+    const activePinHash = getRoomPinHash(room);
+    const token = createAuthToken(room.roomCode, activePinHash);
+    return res.json({
+      success: true,
+      authToken: token,
+      roomCode: room.roomCode
+    });
+  }
+
+  const prevCount = (attemptRecord ? attemptRecord.count : 0) + 1;
+  const lockUntil = prevCount >= 5 ? now + 15 * 60000 : null;
+  failedPinAttempts.set(clientIp, { count: prevCount, lockUntil });
+
+  const remaining = Math.max(0, 5 - prevCount);
+  return res.status(401).json({
+    success: false,
+    error: remaining > 0
+      ? `Hatalı PIN şifresi! (${remaining} deneme hakkınız kaldı)`
+      : '5 hatalı deneme yapıldı! 15 dakika boyunca giriş kilitlendi.'
+  });
+});
+
+// PIN Şifresini Değiştirme Endpointi (Mevcut Doğrulama Gerektirir)
+app.post('/api/auth/change-pin', (req, res) => {
+  const roomCode = (req.body.roomCode || 'BUDU-2026').trim().toUpperCase();
+  const { authToken, oldPin, newPin } = req.body;
+  const room = getRoom(roomCode);
+
+  if (!verifyRoomAuth(room, { pin: oldPin, authToken })) {
+    return res.status(401).json({ success: false, error: 'Mevcut PIN şifresi doğrulanamadı!' });
+  }
+
+  const cleanNewPin = String(newPin || '').trim();
+  if (cleanNewPin.length < 4) {
+    return res.status(400).json({ success: false, error: 'Yeni PIN en az 4 karakter olmalıdır!' });
+  }
+
+  const newHash = hashPin(cleanNewPin);
+  room.coupleInfo.pinHash = newHash;
+  saveDB(db);
+
+  const newToken = createAuthToken(room.roomCode, newHash);
+  return res.json({ success: true, authToken: newToken });
+});
+
 app.get('/api/room/:code', (req, res) => {
   const room = getRoom(req.params.code);
-  res.json(room);
+  const authToken = req.headers['x-auth-token'] || req.query.authToken;
+  const pin = req.query.pin;
+  if (!verifyRoomAuth(room, { pin, authToken })) {
+    return res.status(401).json({ error: 'PIN_REQUIRED', message: 'Bu odaya erişmek için çift PIN şifresi gereklidir.' });
+  }
+  res.json(sanitizeRoomForClient(room));
 });
 
 app.post('/api/room/:code/theme', (req, res) => {
@@ -420,10 +540,17 @@ io.on('connection', (socket) => {
     socket.emit('tunnel_ready', { publicTunnelUrl });
   }
 
-  socket.on('join_room', ({ roomCode, character, userName, clientBackup }) => {
+  socket.on('join_room', ({ roomCode, character, userName, clientBackup, authToken, pin }) => {
     currentRoomCode = (roomCode || 'BUDU-2026').trim().toUpperCase();
-    socket.join(currentRoomCode);
     const room = getRoom(currentRoomCode);
+
+    if (!verifyRoomAuth(room, { pin, authToken })) {
+      socket.emit('auth_required', { roomCode: currentRoomCode });
+      return;
+    }
+
+    socket.isAuthenticated = true;
+    socket.join(currentRoomCode);
 
     // Eğer telefonda kayıtlı yedek veriler varsa sunucuyla birleştir (Veri kaybını %100 önler)
     if (clientBackup && typeof clientBackup === 'object') {
@@ -449,7 +576,7 @@ io.on('connection', (socket) => {
     }
     saveDB(db);
 
-    socket.emit('room_state', room);
+    socket.emit('room_state', sanitizeRoomForClient(room));
   });
 
   socket.on('update_couple_info', ({ roomCode, coupleInfo, fromChar }) => {

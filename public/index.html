@@ -16,9 +16,46 @@
   <link rel="apple-touch-icon-precomposed" href="/apple-touch-icon-precomposed.png?v=4" />
   <link rel="icon" type="image/png" sizes="180x180" href="/apple-touch-icon.png?v=4" />
 
-  <link rel="stylesheet" href="/css/style.css?v=5" />
+  <link rel="stylesheet" href="/css/style.css?v=7" />
 </head>
 <body>
+  <!-- =========================================================
+       ÖZEL ÇİFT PIN KİLİT EKRANI (VARSAYILAN ŞİFRE: 220925)
+       ========================================================= -->
+  <div id="pinLockOverlay" class="pin-lock-overlay">
+    <div class="pin-lock-card">
+      <img src="/assets/budu-icon.png" alt="BuDuLove" class="pin-lock-logo" />
+      <h2 style="font-size:21px; font-weight:900; margin-bottom:4px;">🔒 BuDuLove Özel Kilit</h2>
+      <p style="font-size:12.5px; opacity:0.9;">Devam etmek için 6 haneli çift PIN şifrenizi girin</p>
+
+      <div id="pinDotsRow" class="pin-dots-row">
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+      </div>
+
+      <div id="pinErrorMsg" class="pin-error-msg"></div>
+
+      <div class="pin-keypad">
+        <button class="pin-key-btn" onclick="pressPinDigit('1')">1</button>
+        <button class="pin-key-btn" onclick="pressPinDigit('2')">2</button>
+        <button class="pin-key-btn" onclick="pressPinDigit('3')">3</button>
+        <button class="pin-key-btn" onclick="pressPinDigit('4')">4</button>
+        <button class="pin-key-btn" onclick="pressPinDigit('5')">5</button>
+        <button class="pin-key-btn" onclick="pressPinDigit('6')">6</button>
+        <button class="pin-key-btn" onclick="pressPinDigit('7')">7</button>
+        <button class="pin-key-btn" onclick="pressPinDigit('8')">8</button>
+        <button class="pin-key-btn" onclick="pressPinDigit('9')">9</button>
+        <button class="pin-key-btn" style="font-size:18px;" onclick="clearPinDigits()">⌫</button>
+        <button class="pin-key-btn" onclick="pressPinDigit('0')">0</button>
+        <button class="pin-key-btn" style="font-size:18px;" onclick="submitPinLogin()">🔓</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Vişne Çürüğü & Pastel Arka Plan Küreleri -->
   <div class="bg-blobs">
     <div class="blob blob-pink"></div>
@@ -61,6 +98,7 @@
         </button>
         <button class="icon-btn" onclick="cycleQuickTheme()" title="Vişne Çürüğü & Renk Teması Değiştir">🍒</button>
         <button class="icon-btn" onclick="enableBackgroundPushNotifications()" title="Arka Plan Bildirimlerini Aç">🔔</button>
+        <button class="icon-btn" onclick="lockAppManually()" title="Uygulamayı PIN ile Kilitle">🔒</button>
         <button class="icon-btn" onclick="openQrModal()" title="iPhone Kurulum & QR Kod">📱</button>
       </div>
     </header>
@@ -714,6 +752,27 @@
 
           <button class="primary-btn" style="width:100%;" onclick="saveCoupleSettings()">💾 Çift Ayarlarını Kalıcı Kaydet</button>
         </div>
+
+        <div class="glass-card">
+          <div class="card-header-row">
+            <div class="card-title">🔒 Çift PIN Kilidi & Güvenlik</div>
+            <button class="secondary-btn" style="padding:5px 11px; font-size:11px;" onclick="lockAppManually()">🔒 Şimdi Kilitle</button>
+          </div>
+          <p style="font-size:11.5px; color:var(--text-muted); margin-bottom:10px;">
+            Uygulamanız <strong>SHA-256 PIN Şifrelemesi</strong> ve <strong>Brute-Force Koruması</strong> ile korunmaktadır. İsterseniz giriş PIN şifrenizi aşağıdan değiştirebilirsiniz:
+          </p>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div class="form-group">
+              <label class="form-label">Mevcut PIN:</label>
+              <input id="inputOldPin" type="password" inputmode="numeric" maxlength="8" class="form-input" placeholder="220925" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Yeni 6 Haneli PIN:</label>
+              <input id="inputNewPin" type="password" inputmode="numeric" maxlength="6" class="form-input" placeholder="Yeni PIN" />
+            </div>
+          </div>
+          <button class="secondary-btn" style="width:100%;" onclick="changeCouplePin()">🔐 PIN Şifresini Güncelle</button>
+        </div>
       </section>
 
     </main>
@@ -1005,6 +1064,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/app.js?v=6"></script>
+  <script src="/js/app.js?v=7"></script>
 </body>
 </html>

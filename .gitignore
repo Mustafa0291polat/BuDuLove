@@ -1,3 +1,5 @@
 node_modules/
 .env
 *.log
+data/couples_db.json
+data/*.tmp
