@@ -109,6 +109,170 @@ body.theme-okyanus-pembe {
   --khaki-deep: #3A6E65;
 }
 
+/* Tema 7: Koyu Vişne & Bordo Kadife */
+body.theme-visne-bordo {
+  --pink-light: #F5DEE4;
+  --pink-soft: #D69CAA;
+  --pink-main: #6B0F24;
+  --pink-deep: #470716;
+  --lilac-light: #EFE0E6;
+  --lilac-soft: #CAA6B5;
+  --lilac-main: #591830;
+  --lilac-deep: #3B0D1E;
+  --khaki-light: #F3EAE8;
+  --khaki-soft: #D9C3BE;
+  --khaki-main: #7D554D;
+  --khaki-deep: #52352F;
+  --text-dark: #2B0812;
+}
+
+/* Tema 8: Vişne Çürüğü & Şampanya Altın */
+body.theme-visne-altin {
+  --pink-light: #F9E6EB;
+  --pink-soft: #E5B0BF;
+  --pink-main: #8A1C33;
+  --pink-deep: #5E0E20;
+  --lilac-light: #FBF3E4;
+  --lilac-soft: #EDD4A8;
+  --lilac-main: #C29243;
+  --lilac-deep: #8C631F;
+  --khaki-light: #F7EFE2;
+  --khaki-soft: #E2CEAF;
+  --khaki-main: #9C7E54;
+  --khaki-deep: #695130;
+}
+
+/* Tema 9: Mürdüm & Pudra Pembe */
+body.theme-murdum-pudra {
+  --pink-light: #F9E6F2;
+  --pink-soft: #E8B5D5;
+  --pink-main: #732659;
+  --pink-deep: #4D143A;
+  --lilac-light: #F3E5F7;
+  --lilac-soft: #D8B4E2;
+  --lilac-main: #86459B;
+  --lilac-deep: #5B286B;
+  --khaki-light: #F7EAF0;
+  --khaki-soft: #E3C3D1;
+  --khaki-main: #9E6B82;
+  --khaki-deep: #6E4356;
+}
+
+/* Tema 10: Gül Kurusu & İpek Krem */
+body.theme-gul-kurusu {
+  --pink-light: #FBF0F2;
+  --pink-soft: #EBC5CE;
+  --pink-main: #B56576;
+  --pink-deep: #874050;
+  --lilac-light: #F6ECEF;
+  --lilac-soft: #DFC3CB;
+  --lilac-main: #9E6B78;
+  --lilac-deep: #6E444F;
+  --khaki-light: #F5F0EB;
+  --khaki-soft: #DFD2C5;
+  --khaki-main: #9C8774;
+  --khaki-deep: #6B5A4B;
+}
+
+/* Tema 11: Zümrüt Yeşili & Krem & Altın */
+body.theme-zumrut-krem {
+  --pink-light: #E6F4EF;
+  --pink-soft: #B2DBD0;
+  --pink-main: #236B56;
+  --pink-deep: #134738;
+  --lilac-light: #EDF5F0;
+  --lilac-soft: #C1DBC9;
+  --lilac-main: #437D62;
+  --lilac-deep: #295440;
+  --khaki-light: #F7F2E7;
+  --khaki-soft: #E3D3B4;
+  --khaki-main: #A88B54;
+  --khaki-deep: #755E32;
+  --text-dark: #15332A;
+}
+
+/* Tema 12: Gece Mavisi & Gümüş & Lila */
+body.theme-gece-mavisi {
+  --pink-light: #E8EEF7;
+  --pink-soft: #B5C7E3;
+  --pink-main: #28487B;
+  --pink-deep: #172D52;
+  --lilac-light: #ECEAF7;
+  --lilac-soft: #C2BCE3;
+  --lilac-main: #5B5294;
+  --lilac-deep: #3B3466;
+  --khaki-light: #EBF0F5;
+  --khaki-soft: #C4D1DE;
+  --khaki-main: #647A91;
+  --khaki-deep: #405263;
+  --text-dark: #18263D;
+}
+
+/* Tema 13: Sıcak Çikolata & Sütlü Kahve */
+body.theme-cikolata-krem {
+  --pink-light: #F5ECE6;
+  --pink-soft: #DEC4B4;
+  --pink-main: #6E412A;
+  --pink-deep: #4A2817;
+  --lilac-light: #F7F0EA;
+  --lilac-soft: #E3CFC0;
+  --lilac-main: #8F5E43;
+  --lilac-deep: #613B26;
+  --khaki-light: #F2ECE4;
+  --khaki-soft: #D9C9B5;
+  --khaki-main: #8A745A;
+  --khaki-deep: #5C4B37;
+  --text-dark: #331D11;
+}
+
+/* Tema 14: Lavanta & Şeftali & Krem */
+body.theme-lavanta-seftali {
+  --pink-light: #FFF0E8;
+  --pink-soft: #F7C7B0;
+  --pink-main: #D97254;
+  --pink-deep: #A64B30;
+  --lilac-light: #F2ECF9;
+  --lilac-soft: #D3C0EB;
+  --lilac-main: #8868B8;
+  --lilac-deep: #5E428A;
+  --khaki-light: #F9F2EC;
+  --khaki-soft: #E8D3C3;
+  --khaki-main: #B08B72;
+  --khaki-deep: #7D5D47;
+}
+
+/* Tema 15: Kızıl Günbatımı & Mercan */
+body.theme-gunbatimi-kizil {
+  --pink-light: #FCEAE8;
+  --pink-soft: #F2B6B0;
+  --pink-main: #B8332A;
+  --pink-deep: #821B14;
+  --lilac-light: #FCEEE6;
+  --lilac-soft: #F2C8B0;
+  --lilac-main: #CC663D;
+  --lilac-deep: #964220;
+  --khaki-light: #F7EDE8;
+  --khaki-soft: #E0C5B8;
+  --khaki-main: #996E5C;
+  --khaki-deep: #694638;
+}
+
+/* Tema 16: Yakut Kırmızısı & Romantik Pembe */
+body.theme-yakut-kirmizi {
+  --pink-light: #FCE6EB;
+  --pink-soft: #F2B3C2;
+  --pink-main: #A81C3A;
+  --pink-deep: #750D23;
+  --lilac-light: #FCEBF0;
+  --lilac-soft: #F0C2D1;
+  --lilac-main: #C75278;
+  --lilac-deep: #913050;
+  --khaki-light: #F7EBEF;
+  --khaki-soft: #DEC1CB;
+  --khaki-main: #946877;
+  --khaki-deep: #63404C;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

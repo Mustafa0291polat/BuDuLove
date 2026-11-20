@@ -64,6 +64,18 @@ function createInitialMemoryDeck() {
   }));
 }
 
+const GOKHAN_DERDIM_SONG = {
+  id: 'song-gokhan-turkmen-derdim',
+  title: 'Derdim',
+  artist: 'Gökhan Türkmen',
+  audioUrl: '/assets/gokhan-turkmen-derdim.m4a',
+  coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/6e/bb/d2/6ebbd2a5-deb8-36dc-0a06-7b203bf42811/195497276202.jpg/100x100bb.jpg',
+  note: 'Bizim Şarkımız 🎵💕',
+  addedByChar: 'bubu',
+  addedByName: 'Bubu & Dudu',
+  createdAt: '2025-09-22T12:00:00.000Z'
+};
+
 function getDefaultRoomData(roomCode = 'BUDU-2026') {
   return {
     roomCode,
@@ -76,13 +88,12 @@ function getDefaultRoomData(roomCode = 'BUDU-2026') {
       duduName: 'Dudu',
       theme: 'visne-curugu'
     },
-    // Rastgele veriler tamamen kaldırıldı — sadece sizin ekledikleriniz yer alır
     affectionHistory: [],
     notes: [],
     messages: [],
     memories: [],
     events: [],
-    songs: [],
+    songs: [{ ...GOKHAN_DERDIM_SONG }],
     deletedIds: [],
     pushSubscriptions: [],
     games: {
@@ -176,6 +187,9 @@ function ensureRoomStructure(room) {
   if (!Array.isArray(room.events)) room.events = [];
   if (!Array.isArray(room.songs)) room.songs = [];
   if (!Array.isArray(room.deletedIds)) room.deletedIds = [];
+  if (!room.deletedIds.includes(GOKHAN_DERDIM_SONG.id) && !room.songs.some((s) => s.id === GOKHAN_DERDIM_SONG.id)) {
+    room.songs.unshift({ ...GOKHAN_DERDIM_SONG });
+  }
   if (!Array.isArray(room.pushSubscriptions)) room.pushSubscriptions = [];
   if (!room.games) room.games = def.games;
   if (!room.games.balloonScores) room.games.balloonScores = { bubu: 0, dudu: 0 };
@@ -372,6 +386,15 @@ app.get('/api/room/:code', (req, res) => {
   res.json(room);
 });
 
+app.post('/api/room/:code/theme', (req, res) => {
+  const room = getRoom(req.params.code);
+  if (req.body && req.body.theme) {
+    room.coupleInfo.theme = req.body.theme;
+    saveDB(db);
+  }
+  res.json({ success: true, theme: room.coupleInfo.theme });
+});
+
 // İstemci Cihaz Yedeğini Sunucu Veritabanıyla Birleştirme (Hiçbir Veri Silinmesin!)
 function mergeArrayById(serverArr, clientArr, deletedIds = []) {
   const delSet = new Set(deletedIds);
@@ -439,6 +462,14 @@ io.on('connection', (socket) => {
       body: `${room.coupleInfo.bubuName} & ${room.coupleInfo.duduName} ayarları senkronize edildi! 💕`,
       fromChar
     });
+  });
+
+  socket.on('save_theme', ({ roomCode, theme }) => {
+    const room = getRoom(roomCode || currentRoomCode);
+    if (theme) {
+      room.coupleInfo.theme = theme;
+      saveDB(db);
+    }
   });
 
   // 1) SEVGİ GÖSTERME + YUMRUK ATMA (Yumruk atınca sevgi enerjisi düşer!)

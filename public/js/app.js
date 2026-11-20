@@ -30,15 +30,44 @@ let dartSettingHeadMode = false;
 let dartImageElement = null;
 let dartImageSrcLoaded = null;
 
-// Renk Temaları Listesi (Vişne Çürüğü Başta Olmak Üzere)
+// 16 Özel Renk Kombinasyonu Listesi
 const COLOR_THEMES = [
   'visne-curugu',
   'visne-haki',
+  'visne-bordo',
+  'visne-altin',
+  'murdum-pudra',
   'pink-lilac-khaki',
+  'gul-kurusu',
+  'zumrut-krem',
+  'gece-mavisi',
   'gece-visne',
   'karamel-visne',
-  'okyanus-pembe'
+  'cikolata-krem',
+  'lavanta-seftali',
+  'gunbatimi-kizil',
+  'okyanus-pembe',
+  'yakut-kirmizi'
 ];
+
+const THEME_LABELS = {
+  'visne-curugu': '🍒 1. Vişne Çürüğü & Gül Kurusu',
+  'visne-haki': '🍒🌿 2. Vişne Çürüğü & Adaçayı Haki',
+  'visne-bordo': '🍒🌙 3. Koyu Vişne & Bordo Kadife',
+  'visne-altin': '🍒✨ 4. Vişne Çürüğü & Şampanya Altın',
+  'murdum-pudra': '🍇🌸 5. Mürdüm & Pudra Pembe',
+  'pink-lilac-khaki': '🌸💜🌿 6. Toz Pembe & Lila & Haki',
+  'gul-kurusu': '🥀🤍 7. Gül Kurusu & İpek Krem',
+  'zumrut-krem': '💎🌿 8. Zümrüt Yeşili & Krem & Altın',
+  'gece-mavisi': '🌌💙 9. Gece Mavisi & Gümüş & Lila',
+  'gece-visne': '🌙🍒 10. Gece Vişnesi & Koyu Lavanta',
+  'karamel-visne': '🧸🍒 11. Dudu Karamel & Vişne Çürüğü',
+  'cikolata-krem': '🍫☕ 12. Sıcak Çikolata & Sütlü Kahve',
+  'lavanta-seftali': '💜🍑 13. Lavanta & Şeftali & Krem',
+  'gunbatimi-kizil': '🌅🔥 14. Kızıl Günbatımı & Mercan',
+  'okyanus-pembe': '🌊🌸 15. Okyanus Mavisi & Vişne',
+  'yakut-kirmizi': '❤️‍🔥🌹 16. Yakut Kırmızısı & Romantik Pembe'
+};
 
 // Ses Sentezleyici
 let audioCtx = null;
@@ -689,10 +718,15 @@ function renderAllFromState() {
   document.getElementById('inputStartDate').value = startDate;
   updateTogetherDaysCounter();
 
-  if (info.theme) {
-    applyThemeSelection(info.theme, false);
-    const themeSel = document.getElementById('selectColorTheme');
-    if (themeSel) themeSel.value = info.theme;
+  const userSavedTheme = localStorage.getItem('budu_theme');
+  const userLockedTheme = localStorage.getItem('budu_theme_saved_by_user') === '1';
+  const activeTheme = (userLockedTheme && userSavedTheme) ? userSavedTheme : (info.theme || userSavedTheme || 'visne-curugu');
+  applyThemeSelection(activeTheme, false);
+  if (userLockedTheme && userSavedTheme && info.theme !== userSavedTheme) {
+    info.theme = userSavedTheme;
+    if (socket && socket.connected) {
+      socket.emit('save_theme', { roomCode: currentRoomCode, theme: userSavedTheme });
+    }
   }
 
   const meter = Math.min(100, Math.max(0, info.loveMeter ?? 100));
@@ -2212,37 +2246,43 @@ function deleteEventItem(eventId) {
 // ============================================================================
 // 7) VİŞNE ÇÜRÜĞÜ & ÇEŞİTLİ RENK KOMBİNASYONLARI + AYARLAR
 // ============================================================================
-function applyThemeSelection(themeVal, notify = true) {
-  document.body.classList.remove(
-    'theme-visne-haki',
-    'theme-pink-lilac-khaki',
-    'theme-gece-visne',
-    'theme-karamel-visne',
-    'theme-okyanus-pembe'
-  );
-  if (themeVal && themeVal !== 'visne-curugu') {
-    document.body.classList.add('theme-' + themeVal);
+function applyThemeSelection(themeVal, persistByUser = false) {
+  const chosen = COLOR_THEMES.includes(themeVal) ? themeVal : 'visne-curugu';
+  COLOR_THEMES.forEach((t) => {
+    if (t !== 'visne-curugu') {
+      document.body.classList.remove('theme-' + t);
+    }
+  });
+  if (chosen !== 'visne-curugu') {
+    document.body.classList.add('theme-' + chosen);
   }
-  localStorage.setItem('budu_theme', themeVal || 'visne-curugu');
+  localStorage.setItem('budu_theme', chosen);
   const sel = document.getElementById('selectColorTheme');
-  if (sel) sel.value = themeVal || 'visne-curugu';
+  if (sel) sel.value = chosen;
+
+  if (persistByUser) {
+    localStorage.setItem('budu_theme_saved_by_user', '1');
+    if (roomState && roomState.coupleInfo) {
+      roomState.coupleInfo.theme = chosen;
+      saveLocalBackup(roomState);
+    }
+    if (socket && socket.connected) {
+      socket.emit('save_theme', { roomCode: currentRoomCode, theme: chosen });
+    }
+    fetch(`/api/room/${currentRoomCode}/theme`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ theme: chosen })
+    }).catch(() => {});
+  }
 }
 
 function cycleQuickTheme() {
   const current = localStorage.getItem('budu_theme') || 'visne-curugu';
   const idx = COLOR_THEMES.indexOf(current);
   const next = COLOR_THEMES[(idx + 1) % COLOR_THEMES.length];
-  applyThemeSelection(next);
-
-  const names = {
-    'visne-curugu': '🍒 Vişne Çürüğü & Gül Kurusu',
-    'visne-haki': '🍒🌿 Vişne Çürüğü & Adaçayı Haki',
-    'pink-lilac-khaki': '🌸💜🌿 Toz Pembe & Lila & Haki',
-    'gece-visne': '🌙🍒 Gece Vişnesi & Lavanta',
-    'karamel-visne': '🧸🍒 Dudu Karamel & Vişne Çürüğü',
-    'okyanus-pembe': '🌊🌸 Okyanus Mavisi & Vişne'
-  };
-  showIosBanner('🎨🍒', 'Renk Kombinasyonu Değişti!', names[next] || next);
+  applyThemeSelection(next, true);
+  showIosBanner('🎨🍒', 'Renk Kombinasyonu Kalıcı Kaydedildi!', THEME_LABELS[next] || next);
 }
 
 function saveCoupleSettings() {

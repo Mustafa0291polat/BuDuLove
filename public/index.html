@@ -16,7 +16,7 @@
   <link rel="apple-touch-icon-precomposed" href="/apple-touch-icon-precomposed.png?v=4" />
   <link rel="icon" type="image/png" sizes="180x180" href="/apple-touch-icon.png?v=4" />
 
-  <link rel="stylesheet" href="/css/style.css?v=4" />
+  <link rel="stylesheet" href="/css/style.css?v=5" />
 </head>
 <body>
   <!-- Vişne Çürüğü & Pastel Arka Plan Küreleri -->
@@ -657,14 +657,24 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">🎨 Renk Kombinasyonu Seçimi (Vişne Çürüğü & Özel Temalar):</label>
-            <select id="selectColorTheme" class="form-select" onchange="applyThemeSelection(this.value)">
-              <option value="visne-curugu">🍒 Vişne Çürüğü & Gül Kurusu & Krem (Varsayılan)</option>
-              <option value="visne-haki">🍒🌿 Vişne Çürüğü & Adaçayı Haki</option>
-              <option value="pink-lilac-khaki">🌸💜🌿 Toz Pembe & Lavanta Lila & Haki</option>
-              <option value="gece-visne">🌙🍒 Gece Vişnesi & Koyu Lavanta</option>
-              <option value="karamel-visne">🧸🍒 Dudu Karamel & Vişne Çürüğü</option>
-              <option value="okyanus-pembe">🌊🌸 Okyanus Mavisi & Vişne & Sakura</option>
+            <label class="form-label">🎨 Renk Kombinasyonu Seçimi (16 Özel Tema - Otomatik Kaydedilir):</label>
+            <select id="selectColorTheme" class="form-select" onchange="applyThemeSelection(this.value, true)">
+              <option value="visne-curugu">🍒 1. Vişne Çürüğü & Gül Kurusu & Krem</option>
+              <option value="visne-haki">🍒🌿 2. Vişne Çürüğü & Adaçayı Haki</option>
+              <option value="visne-bordo">🍒🌙 3. Koyu Vişne & Bordo Kadife</option>
+              <option value="visne-altin">🍒✨ 4. Vişne Çürüğü & Şampanya Altın</option>
+              <option value="murdum-pudra">🍇🌸 5. Mürdüm & Pudra Pembe</option>
+              <option value="pink-lilac-khaki">🌸💜🌿 6. Toz Pembe & Lavanta Lila & Haki</option>
+              <option value="gul-kurusu">🥀🤍 7. Gül Kurusu & İpek Krem</option>
+              <option value="zumrut-krem">💎🌿 8. Zümrüt Yeşili & Krem & Altın</option>
+              <option value="gece-mavisi">🌌💙 9. Gece Mavisi & Gümüş & Lila</option>
+              <option value="gece-visne">🌙🍒 10. Gece Vişnesi & Koyu Lavanta</option>
+              <option value="karamel-visne">🧸🍒 11. Dudu Karamel & Vişne Çürüğü</option>
+              <option value="cikolata-krem">🍫☕ 12. Sıcak Çikolata & Sütlü Kahve</option>
+              <option value="lavanta-seftali">💜🍑 13. Lavanta & Şeftali & Krem</option>
+              <option value="gunbatimi-kizil">🌅🔥 14. Kızıl Günbatımı & Mercan</option>
+              <option value="okyanus-pembe">🌊🌸 15. Okyanus Mavisi & Vişne & Sakura</option>
+              <option value="yakut-kirmizi">❤️‍🔥🌹 16. Yakut Kırmızısı & Romantik Pembe</option>
             </select>
           </div>
 
@@ -995,6 +1005,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/app.js?v=4"></script>
+  <script src="/js/app.js?v=5"></script>
 </body>
 </html>
