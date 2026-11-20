@@ -1,6 +1,6 @@
-# 🐼💕🐻 BUDULOVE (BuDuLove) — Bubu & Dudu Çift Mobil Uygulaması
+# 🐼💕🐻 BuDuLove (BuDuLove) — Bubu & Dudu Çift Mobil Uygulaması
 
-**BUDULOVE**, Çinli sanatçı **Huang Xiao B.** tarafından Haziran 2018'de Weibo'da ortaya çıkarılan sevimli karakterler **Bubu (Beyaz Panda)** ve **Dudu (Kahverengi Ayıcık)** temalı, sevgilinizle ortak kullanabileceğiniz gerçek zamanlı iOS / iPhone uyumlu mobil uygulamadır.
+**BuDuLove**, Çinli sanatçı **Huang Xiao B.** tarafından Haziran 2018'de Weibo'da ortaya çıkarılan sevimli karakterler **Bubu (Beyaz Panda)** ve **Dudu (Kahverengi Ayıcık)** temalı, sevgilinizle ortak kullanabileceğiniz gerçek zamanlı iOS / iPhone uyumlu mobil uygulamadır.
 
 ---
 
@@ -37,5 +37,5 @@
 2. Bilgisayar ekranında otomatik olarak **Yan Yana 2 iPhone Canlı Test Stüdyosu** ve sağ tarafta **iPhone Kurulum QR Kodu** açılacaktır.
 3. iPhone kameranızı açıp ekrandaki **QR Kodu** okutarak uygulamayı **Safari**'de açın.
 4. Safari'de alt ortadaki **Paylaş** simgesine dokunup **"Ana Ekrana Ekle" (Add to Home Screen)** seçeneğine basın.
-5. Uygulama iPhone ana ekranınıza **BUDULOVE** ikonuyla tam ekran iOS uygulaması olarak eklenecektir!
+5. Uygulama iPhone ana ekranınıza **BuDuLove** ikonuyla tam ekran iOS uygulaması olarak eklenecektir!
 6. *Farklı evlerden (4G/5G üzerinden) bağlanmak için:* `UZAKTAN_INTERNET_BAGLANTISI.bat` dosyasını çalıştırarak verilen `https://...loca.lt` linkini sevgilinize gönderebilirsiniz.

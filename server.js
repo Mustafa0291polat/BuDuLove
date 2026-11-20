@@ -50,7 +50,7 @@ function getDefaultRoomData(roomCode = 'BUDU-2026') {
   return {
     roomCode,
     coupleInfo: {
-      appName: 'BUDULOVE',
+      appName: 'BuDuLove',
       startDate: '2024-06-14',
       loveMeter: 88,
       totalInteractions: 142,

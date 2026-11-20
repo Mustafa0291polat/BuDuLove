@@ -1,5 +1,5 @@
 /* ============================================================================
-   BUDULOVE • Bubu & Dudu Ortak Sevgili Mobil Uygulaması (iOS PWA + Real-Time)
+   BuDuLove • Bubu & Dudu Ortak Sevgili Mobil Uygulaması (iOS PWA + Real-Time)
    ============================================================================ */
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -254,7 +254,7 @@ function requestIosNotifications() {
     if (perm === 'granted') {
       showIosBanner('🔔💖', 'Bildirimler Açıldı!', 'Artık Bubu ve Dudu\'nun her öpücüğü ve etkinlik hatırlatması anında bildirim olarak gelecek!');
       try {
-        new Notification('BUDULOVE Bildirimleri Aktif! 🐼💕🐻', {
+        new Notification('BuDuLove Bildirimleri Aktif! 🐼💕🐻', {
           body: 'Sevgilin sana dokunduğunda veya öpücük attığında anında haberdar olacaksın!',
           icon: '/assets/budu-icon.png'
         });
