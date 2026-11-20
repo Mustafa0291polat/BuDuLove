@@ -162,20 +162,60 @@ function loadLocalBackup() {
 }
 
 // ============================================================================
-// ÖZEL ÇİFT PIN KİLİT SİSTEMİ (ŞİFRE: 220925)
+// ÖZEL ÇİFT PIN KİLİT SİSTEMİ (OTOMATİK ARKA PLAN & EKRAN KİLİDİ - ŞİFRE: 220925)
 // ============================================================================
 let currentPinInput = '';
+let activeSessionAuthToken = ''; // Sadece aktif oturum belleğinde tutulur (Uygulama arka plandan silinince sıfırlanır ve kilitlenir!)
+let backgroundEnteredAt = null;
+let backgroundLockTimer = null;
+const AUTO_LOCK_BACKGROUND_MS = 60 * 1000; // Arka planda 1 dakika (60 sn) kalınca otomatik kilitle
 
 function getAuthToken() {
-  return localStorage.getItem('budu_auth_token_' + currentRoomCode) || '';
+  return activeSessionAuthToken;
 }
 
 function setAuthToken(token) {
-  if (token) {
-    localStorage.setItem('budu_auth_token_' + currentRoomCode, token);
-  } else {
-    localStorage.removeItem('budu_auth_token_' + currentRoomCode);
-  }
+  activeSessionAuthToken = token || '';
+}
+
+function initAutoLockWatchers() {
+  // 1) Uygulama arka plana alındığında veya telefon kilitlendiğinde 1 dakikalık sayacı başlat
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      backgroundEnteredAt = Date.now();
+      if (backgroundLockTimer) clearTimeout(backgroundLockTimer);
+      backgroundLockTimer = setTimeout(() => {
+        lockAppManually();
+      }, AUTO_LOCK_BACKGROUND_MS);
+    } else {
+      if (backgroundLockTimer) {
+        clearTimeout(backgroundLockTimer);
+        backgroundLockTimer = null;
+      }
+      if (backgroundEnteredAt && (Date.now() - backgroundEnteredAt >= AUTO_LOCK_BACKGROUND_MS)) {
+        lockAppManually();
+      }
+      backgroundEnteredAt = null;
+    }
+  });
+
+  // 2) iOS ekran kilidi / sayfa askıya alınma (freeze / pagehide) durumunda kontrol
+  window.addEventListener('pagehide', () => {
+    backgroundEnteredAt = Date.now();
+  });
+
+  window.addEventListener('pageshow', () => {
+    if (backgroundEnteredAt && (Date.now() - backgroundEnteredAt >= AUTO_LOCK_BACKGROUND_MS)) {
+      lockAppManually();
+    }
+  });
+
+  window.addEventListener('focus', () => {
+    if (backgroundEnteredAt && (Date.now() - backgroundEnteredAt >= AUTO_LOCK_BACKGROUND_MS)) {
+      lockAppManually();
+      backgroundEnteredAt = null;
+    }
+  });
 }
 
 function updatePinDotsUI() {
@@ -310,16 +350,11 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Eğer bu cihazda daha önce doğrulanmış token varsa kilit ekranını aç ve arka planda doğrula
-  const existingToken = getAuthToken();
-  if (existingToken) {
-    document.getElementById('pinLockOverlay').classList.add('unlocked');
-    const cached = loadLocalBackup();
-    if (cached) {
-      roomState = cached;
-      renderAllFromState();
-    }
-  }
+  // Otomatik arka plan (1 dk) ve uygulama kapatma kilit izleyicisini başlat
+  initAutoLockWatchers();
+
+  // Uygulama arka plandan silinip yeniden açıldığında her zaman PIN kilit ekranıyla başlar
+  document.getElementById('pinLockOverlay').classList.remove('unlocked');
 
   initServiceWorkerAndPush();
   initBroadcastChannel();
