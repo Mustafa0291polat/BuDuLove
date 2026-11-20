@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BUDULOVE • İki iPhone (Ben & Sevgilim) Canlı Stüdyo ve Kurulum Merkezi</title>
+  <link rel="icon" type="image/png" href="/assets/budu-icon.png" />
+  <style>
+    :root {
+      --pink: #F7C6D9;
+      --pink-deep: #C85A87;
+      --lilac: #D6C7EB;
+      --lilac-deep: #7B5DB8;
+      --khaki: #C7D6BF;
+      --khaki-deep: #5C7350;
+      --dark: #32263D;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #FCE8F1 0%, #EFE9F8 50%, #E9F1E6 100%);
+      color: var(--dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .studio-header {
+      padding: 14px 26px;
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(16px);
+      border-bottom: 1.5px solid rgba(168, 143, 216, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand img {
+      width: 44px;
+      height: 44px;
+      border-radius: 13px;
+      border: 2px solid #E88BAE;
+    }
+    .brand h1 {
+      font-size: 20px;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--pink-deep), var(--lilac-deep), var(--khaki-deep));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand p {
+      font-size: 12.5px;
+      color: #6E5F7B;
+      font-weight: 600;
+    }
+    .studio-main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 26px;
+      padding: 20px;
+      flex-wrap: wrap;
+    }
+    .iphone-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .phone-label {
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      background: rgba(255,255,255,0.88);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+      border: 1.5px solid var(--pink);
+    }
+    .phone-label.dudu {
+      border-color: var(--khaki-deep);
+    }
+    .iphone-frame {
+      width: 375px;
+      height: 760px;
+      background: #1E1924;
+      border-radius: 52px;
+      padding: 12px;
+      box-shadow: 0 24px 60px rgba(50, 38, 61, 0.25), inset 0 0 0 2px #4A3E56;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    .dynamic-island-notch {
+      width: 106px;
+      height: 24px;
+      background: #0F0C13;
+      border-radius: 999px;
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      pointer-events: none;
+    }
+    .iphone-screen {
+      width: 100%;
+      height: 100%;
+      border-radius: 40px;
+      overflow: hidden;
+      background: #FAF7F8;
+      border: none;
+    }
+    .qr-side-card {
+      width: 345px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(16px);
+      border-radius: 28px;
+      padding: 22px;
+      border: 2px solid var(--lilac);
+      box-shadow: 0 14px 36px rgba(123, 93, 184, 0.14);
+    }
+    .qr-side-card h2 {
+      font-size: 17px;
+      margin-bottom: 6px;
+      color: var(--dark);
+    }
+    .status-chip {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      background: #EBF2E8;
+      color: var(--khaki-deep);
+      border: 1px solid var(--khaki);
+      margin-bottom: 8px;
+    }
+    .qr-box {
+      background: #fff;
+      padding: 12px;
+      border-radius: 20px;
+      border: 2px solid var(--pink);
+      text-align: center;
+      margin: 10px 0;
+    }
+    .qr-box img {
+      width: 195px;
+      height: 195px;
+    }
+    .url-pill {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--lilac-deep);
+      background: #F4EFFB;
+      padding: 8px 10px;
+      border-radius: 10px;
+      margin-top: 6px;
+      word-break: break-all;
+    }
+    .copy-btn {
+      margin-top: 8px;
+      width: 100%;
+      border: none;
+      border-radius: 999px;
+      padding: 9px 14px;
+      background: linear-gradient(135deg, #E88BAE, #A88FD8, #8FA682);
+      color: #fff;
+      font-size: 12.5px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .step-list {
+      font-size: 12.2px;
+      line-height: 1.55;
+      background: #EBF2E8;
+      border: 1px solid var(--khaki);
+      padding: 12px 14px;
+      border-radius: 16px;
+      margin-top: 10px;
+    }
+    .btn-link {
+      display: inline-block;
+      text-decoration: none;
+      padding: 9px 16px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #E88BAE, #A88FD8, #8FA682);
+      color: #fff;
+      font-size: 12.5px;
+      font-weight: 800;
+    }
+  </style>
+</head>
+<body>
+  <header class="studio-header">
+    <div class="brand">
+      <img src="/assets/budu-icon.png" alt="BUDULOVE" />
+      <div>
+        <h1>BUDULOVE • İki Kişilik (Ben & Sevgilim) Canlı iPhone Stüdyosu</h1>
+        <p>1. iPhone'da sadece senin seçtiğin karakter (🐼 Bubu), 2. iPhone'da sadece sevgilinin seçtiği karakter (🐻 Dudu) yer alır ve ikisi canlı haberleşir!</p>
+      </div>
+    </div>
+    <div>
+      <a href="/" target="_blank" class="btn-link">📱 Tek Ekran Görünümü Aç</a>
+    </div>
+  </header>
+
+  <main class="studio-main">
+    <!-- 1. İPHONE: BENİM TELEFONUM (SADECE BUBU GÖRÜNÜR) -->
+    <div class="iphone-column">
+      <div class="phone-label">📱 1. iPhone • Benim Telefonum (Sadece 🐼 Bubu)</div>
+      <div class="iphone-frame">
+        <div class="dynamic-island-notch"></div>
+        <iframe src="/?role=bubu" class="iphone-screen" title="Benim iPhone - Bubu"></iframe>
+      </div>
+    </div>
+
+    <!-- 2. İPHONE: SEVGİLİMİN TELEFONU (SADECE DUDU GÖRÜNÜR) -->
+    <div class="iphone-column">
+      <div class="phone-label dudu">📱 2. iPhone • Sevgilimin Telefonu (Sadece 🐻 Dudu)</div>
+      <div class="iphone-frame">
+        <div class="dynamic-island-notch"></div>
+        <iframe src="/?role=dudu" class="iphone-screen" title="Sevgilimin iPhone - Dudu"></iframe>
+      </div>
+    </div>
+
+    <!-- GERÇEK IPHONE KURULUM VE GLOBAL HTTPS QR KOD PANELİ -->
+    <aside class="qr-side-card">
+      <h2>🍏 İki iPhone'a Kurulum & Eşleşme</h2>
+      <div id="tunnelStatusChip" class="status-chip">⏳ Güvenli HTTPS iPhone Tüneli Hazırlanıyor...</div>
+      <p style="font-size:12px; color:#6E5F7B; line-height:1.45;">
+        Sen kendi iPhone'undan, sevgilin de kendi iPhone'undan bu QR kodu veya linki açar. Herkes kendi telefonunda kendi karakterini seçer:
+      </p>
+      <div class="qr-box">
+        <img id="studioQrImg" src="" alt="QR Kodu Yükleniyor..." />
+        <div id="studioUrlText" class="url-pill">HTTPS linki oluşturuluyor...</div>
+        <button id="copyUrlBtn" class="copy-btn" onclick="copyTunnelUrl()">📋 Linki Kopyala (Sevgiline Gönder)</button>
+      </div>
+      <div class="step-list">
+        <strong>📱 Sen ve Sevgilin Nasıl Kullanacaksınız?</strong><br/>
+        1. <strong>Senin iPhone'un:</strong> QR kodu okut, açılan ekranda karakterini <strong>🐼 Bubu</strong> (veya Dudu) seç -> Senin ekranında sadece senin karakterin durur.<br/>
+        2. <strong>Sevgilinin iPhone'u:</strong> Kopyaladığın linki sevgiline gönder, o da kendi telefonunda diğer karakteri (<strong>🐻 Dudu</strong>) seçsin -> Onun ekranında da sadece kendi karakteri durur.<br/>
+        3. İkiniz de <strong>Paylaş -> Ana Ekrana Ekle</strong> yapın; artık iki ayrı iPhone'dan canlı öpücük, bildirim, mesaj, oyun ve takvim paylaşabilirsiniz!
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    let currentUrl = '';
+    function refreshTunnelInfo() {
+      fetch('/api/info')
+        .then(r => r.json())
+        .then(info => {
+          document.getElementById('studioQrImg').src = info.qrDataUrl;
+          currentUrl = info.primaryUrl;
+          document.getElementById('studioUrlText').textContent = info.primaryUrl;
+          const chip = document.getElementById('tunnelStatusChip');
+          if (info.publicTunnelUrl) {
+            chip.textContent = '✅ Global HTTPS Bağlantısı Aktif (2 iPhone Hazır)';
+            chip.style.background = '#E3F5E1';
+          } else {
+            setTimeout(refreshTunnelInfo, 2000);
+          }
+        })
+        .catch(() => setTimeout(refreshTunnelInfo, 2500));
+    }
+    refreshTunnelInfo();
+
+    function copyTunnelUrl() {
+      if (!currentUrl) return;
+      navigator.clipboard.writeText(currentUrl);
+      const btn = document.getElementById('copyUrlBtn');
+      btn.textContent = '✅ Kopyalandı! WhatsApp\'tan Sevgiline Gönder';
+      setTimeout(() => {
+        btn.textContent = '📋 Linki Kopyala (Sevgiline Gönder)';
+      }, 2500);
+    }
+  </script>
+</body>
+</html>

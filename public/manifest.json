@@ -1,0 +1,24 @@
+{
+  "name": "BUDULOVE: Bubu & Dudu Aşk Dünyamız",
+  "short_name": "BUDULOVE",
+  "description": "Bubu ve Dudu karakterleriyle sevgilinizle ortak kullanabileceğiniz sevgi, oyun, not, mesajlaşma ve anı takvimi uygulaması.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF6F8",
+  "theme_color": "#E88BAE",
+  "icons": [
+    {
+      "src": "/assets/budu-icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/budu-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,1395 @@
+:root {
+  /* Pembe - Lila - Haki Özel Pastel Renk Paleti */
+  --pink-light: #FCE8F1;
+  --pink-soft: #F7C6D9;
+  --pink-main: #E88BAE;
+  --pink-deep: #C85A87;
+
+  --lilac-light: #F1EBF9;
+  --lilac-soft: #D6C7EB;
+  --lilac-main: #A88FD8;
+  --lilac-deep: #7B5DB8;
+
+  --khaki-light: #EBF1E8;
+  --khaki-soft: #C7D6BF;
+  --khaki-main: #8FA682;
+  --khaki-deep: #5C7350;
+
+  --bg-cream: #FAF7F8;
+  --text-dark: #3B2E45;
+  --text-muted: #766882;
+  --card-bg: rgba(255, 255, 255, 0.84);
+  --card-border: rgba(232, 139, 174, 0.25);
+  --shadow-soft: 0 10px 30px rgba(123, 93, 184, 0.11);
+  --shadow-card: 0 6px 20px rgba(92, 115, 80, 0.09);
+  --radius-xl: 26px;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+}
+
+body.theme-lilac-khaki {
+  --pink-main: #C98BB8;
+  --lilac-main: #9376D0;
+  --khaki-main: #7C9A6D;
+}
+
+body.theme-romantic-pink {
+  --pink-main: #EC76A4;
+  --lilac-main: #B494E4;
+  --khaki-main: #94AC87;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+input, textarea, select {
+  user-select: text;
+  font-family: inherit;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text-dark);
+  background: linear-gradient(145deg, var(--pink-light) 0%, var(--lilac-light) 50%, var(--khaki-light) 100%);
+}
+
+/* Arka plan dekoratif pastel küreler */
+.bg-blobs {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(45px);
+  opacity: 0.65;
+  animation: floatBlob 14s infinite alternate ease-in-out;
+}
+
+.blob-pink {
+  width: 260px;
+  height: 260px;
+  background: var(--pink-soft);
+  top: -50px;
+  left: -40px;
+}
+
+.blob-lilac {
+  width: 280px;
+  height: 280px;
+  background: var(--lilac-soft);
+  top: 32%;
+  right: -70px;
+  animation-delay: -4s;
+}
+
+.blob-khaki {
+  width: 250px;
+  height: 250px;
+  background: var(--khaki-soft);
+  bottom: -40px;
+  left: 15%;
+  animation-delay: -8s;
+}
+
+@keyframes floatBlob {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(18px, 24px) scale(1.1); }
+}
+
+/* Ana Mobil Uygulama Kabı */
+.app-shell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 480px;
+  height: 100dvh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: rgba(252, 249, 251, 0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 0 50px rgba(74, 59, 92, 0.14);
+  overflow: hidden;
+}
+
+/* iOS Dynamic Island Bildirim Bannerı */
+.ios-notification-banner {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 10px) + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-150%);
+  width: calc(100% - 24px);
+  max-width: 440px;
+  z-index: 9999;
+  background: rgba(45, 34, 56, 0.95);
+  color: #fff;
+  border-radius: 24px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 14px 34px rgba(45, 34, 56, 0.35), 0 0 0 1.5px rgba(247, 198, 217, 0.4);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: pointer;
+}
+
+.ios-notification-banner.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+.notif-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--pink-soft), var(--lilac-soft), var(--khaki-soft));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.notif-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--pink-soft);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 2px;
+}
+
+.notif-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-text {
+  font-size: 12.5px;
+  color: #E5DCF0;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Üst Başlık Çubuğu */
+.app-topbar {
+  padding: calc(env(safe-area-inset-top, 10px) + 8px) 16px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(200, 182, 226, 0.3);
+  z-index: 20;
+}
+
+.brand-pill {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.brand-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid var(--pink-main);
+  box-shadow: 0 3px 10px rgba(232, 139, 174, 0.3);
+}
+
+.brand-titles h1 {
+  font-size: 16px;
+  font-weight: 800;
+  background: linear-gradient(90deg, var(--pink-deep), var(--lilac-deep), var(--khaki-deep));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.3px;
+}
+
+.brand-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--khaki-main);
+  box-shadow: 0 0 0 3px rgba(143, 166, 130, 0.28);
+  display: inline-block;
+  animation: pulseDot 2s infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.75; }
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.role-switch-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1.5px solid var(--lilac-soft);
+  background: linear-gradient(135deg, var(--pink-light), var(--lilac-light));
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.role-switch-chip:active {
+  transform: scale(0.94);
+}
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  border: 1px solid var(--khaki-soft);
+  background: var(--khaki-light);
+  color: var(--khaki-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* Yaklaşan Etkinlik Hatırlatma Şeridi */
+.upcoming-reminder-bar {
+  margin: 8px 14px 0;
+  padding: 9px 13px;
+  border-radius: 15px;
+  background: linear-gradient(90deg, rgba(247, 198, 217, 0.65), rgba(214, 199, 235, 0.65), rgba(199, 214, 191, 0.75));
+  border: 1px solid rgba(143, 166, 130, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dark);
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(143, 166, 130, 0.12);
+}
+
+.reminder-badge {
+  background: var(--khaki-deep);
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* İçerik Alanı (Sekmeler) */
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 14px calc(env(safe-area-inset-bottom, 16px) + 84px);
+  scroll-behavior: smooth;
+}
+
+.app-content::-webkit-scrollbar {
+  width: 0;
+  display: none;
+}
+
+.tab-pane {
+  display: none;
+  animation: fadeInTab 0.25s ease;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+@keyframes fadeInTab {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Kartlar */
+.glass-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-xl);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-soft);
+}
+
+.card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-dark);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pill-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--lilac-light);
+  color: var(--lilac-deep);
+  border: 1px solid var(--lilac-soft);
+}
+
+.pill-tag.khaki {
+  background: var(--khaki-light);
+  color: var(--khaki-deep);
+  border-color: var(--khaki-soft);
+}
+
+.pill-tag.pink {
+  background: var(--pink-light);
+  color: var(--pink-deep);
+  border-color: var(--pink-soft);
+}
+
+/* Karakter Seçimi ("Ben: Bubu/Dudu" & "Aşkım: Dudu/Bubu") */
+.char-selector-bar {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.char-choice-card {
+  padding: 11px 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.char-choice-card.active-bubu {
+  border-color: var(--pink-main);
+  background: linear-gradient(135deg, rgba(252, 232, 241, 0.92), rgba(241, 235, 249, 0.85));
+}
+
+.char-choice-card.active-dudu {
+  border-color: var(--khaki-main);
+  background: linear-gradient(135deg, rgba(235, 241, 232, 0.92), rgba(252, 232, 241, 0.82));
+}
+
+.char-mini-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: #fff;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.06);
+}
+
+.char-choice-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.char-role-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--lilac-deep);
+}
+
+.char-name-label {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.char-sub-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* İnteraktif Bubu & Dudu Sahnesi */
+.budu-stage-card {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(165deg, rgba(252, 232, 241, 0.9) 0%, rgba(241, 235, 249, 0.92) 52%, rgba(235, 241, 232, 0.92) 100%);
+  border: 2px solid rgba(232, 139, 174, 0.35);
+}
+
+.couple-days-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.days-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--pink-deep);
+  box-shadow: 0 2px 8px rgba(200, 90, 135, 0.12);
+}
+
+.budu-interactive-stage {
+  position: relative;
+  height: 235px;
+  border-radius: 22px;
+  background: radial-gradient(circle at 50% 60%, rgba(255, 255, 255, 0.95) 0%, rgba(247, 198, 217, 0.35) 55%, rgba(199, 214, 191, 0.35) 100%);
+  border: 1.5px dashed rgba(168, 143, 216, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.stage-speech-bubble {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+  box-shadow: 0 4px 14px rgba(123, 93, 184, 0.16);
+  border: 1.5px solid var(--pink-soft);
+  white-space: nowrap;
+  z-index: 4;
+  transition: all 0.25s ease;
+}
+
+.characters-wrapper {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+  z-index: 2;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.characters-wrapper.anim-kiss .char-svg-box {
+  transform: scale(1.12) rotate(-5deg);
+}
+
+.characters-wrapper.anim-hug .char-svg-box {
+  transform: scale(1.14) translateY(-6px);
+}
+
+.characters-wrapper.anim-bounce {
+  animation: stageBounce 0.55s ease;
+}
+
+@keyframes stageBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(-14px) scale(1.06); }
+  70% { transform: translateY(3px) scale(0.98); }
+}
+
+.char-svg-box {
+  width: 160px;
+  height: 185px;
+  position: relative;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.char-svg-box:active {
+  transform: scale(0.93);
+}
+
+.char-tag {
+  margin-top: -4px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.stage-hint {
+  position: absolute;
+  bottom: 7px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  background: rgba(255,255,255,0.75);
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+/* Uçuşan Kalp ve Öpücük Efektleri */
+.floating-particle {
+  position: absolute;
+  pointer-events: none;
+  font-size: 22px;
+  z-index: 10;
+  animation: floatUpParticle 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes floatUpParticle {
+  0% { opacity: 1; transform: translateY(0) scale(0.6) rotate(0deg); }
+  60% { opacity: 1; transform: translateY(-55px) scale(1.25) rotate(12deg); }
+  100% { opacity: 0; transform: translateY(-95px) scale(0.9) rotate(-10deg); }
+}
+
+/* Sevgi Doluluk Barı (Love Meter) */
+.love-meter-wrap {
+  margin-top: 12px;
+}
+
+.love-meter-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.love-meter-track {
+  width: 100%;
+  height: 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  overflow: hidden;
+  border: 1px solid var(--pink-soft);
+}
+
+.love-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--pink-main), var(--lilac-main), var(--khaki-main));
+  transition: width 0.4s ease;
+}
+
+/* Sevgi Gönderme (Bildirim) Butonları Grid */
+.affection-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.affection-btn {
+  border: none;
+  border-radius: 18px;
+  padding: 11px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-dark);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.affection-btn:active {
+  transform: scale(0.92);
+}
+
+.affection-btn .aff-emoji {
+  font-size: 23px;
+}
+
+.aff-pink {
+  background: linear-gradient(145deg, #FCE4EE, #F7C6D9);
+  border: 1.5px solid #F1A7C4;
+}
+
+.aff-lilac {
+  background: linear-gradient(145deg, #EFE9F8, #D9C9EE);
+  border: 1.5px solid #BFA8E2;
+}
+
+.aff-khaki {
+  background: linear-gradient(145deg, #E9F0E6, #CBE0C1);
+  border: 1.5px solid #A8C29B;
+}
+
+/* Son Sevgi Bildirimleri Listesi */
+.affection-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 210px;
+  overflow-y: auto;
+}
+
+.feed-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(214, 199, 235, 0.45);
+}
+
+.feed-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: var(--pink-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.feed-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.feed-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.feed-desc {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.feed-time {
+  font-size: 10.5px;
+  color: var(--lilac-deep);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* 2) OYUNLAR SEKMESİ */
+.game-tabs-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.game-selector-btn {
+  padding: 9px 6px;
+  border-radius: 15px;
+  border: 1.5px solid var(--lilac-soft);
+  background: rgba(255, 255, 255, 0.75);
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--text-dark);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.game-selector-btn.active {
+  background: linear-gradient(135deg, var(--pink-soft), var(--lilac-soft), var(--khaki-soft));
+  border-color: var(--lilac-deep);
+  box-shadow: 0 4px 12px rgba(123, 93, 184, 0.2);
+}
+
+.game-panel {
+  display: none;
+}
+
+.game-panel.active {
+  display: block;
+}
+
+.scoreboard-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.score-pill {
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 800;
+  border: 1.5px solid var(--pink-soft);
+}
+
+.score-pill.khaki {
+  border-color: var(--khaki-soft);
+}
+
+.game-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 310px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #FDF2F7 0%, #F2ECFA 55%, #EBF2E8 100%);
+  border: 2px solid var(--lilac-soft);
+  overflow: hidden;
+  touch-action: none;
+}
+
+.game-canvas-wrap canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.game-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(250, 247, 248, 0.86);
+  backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  text-align: center;
+  z-index: 5;
+}
+
+.game-overlay.hidden {
+  display: none;
+}
+
+.primary-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 11px 22px;
+  background: linear-gradient(135deg, var(--pink-main), var(--lilac-main), var(--khaki-main));
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(200, 90, 135, 0.28);
+  transition: transform 0.15s ease;
+}
+
+.primary-btn:active {
+  transform: scale(0.95);
+}
+
+.secondary-btn {
+  border: 1.5px solid var(--khaki-main);
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: var(--khaki-light);
+  color: var(--khaki-deep);
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* XOX Tahtası */
+.xox-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 280px;
+  margin: 12px auto;
+}
+
+.xox-cell {
+  aspect-ratio: 1;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid var(--lilac-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+  transition: transform 0.15s ease;
+}
+
+.xox-cell:active {
+  transform: scale(0.93);
+}
+
+/* Hafıza Kartları Grid */
+.memory-game-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.mem-card-tile {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--pink-soft), var(--lilac-soft));
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.07);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.mem-card-tile.flipped, .mem-card-tile.matched {
+  background: #fff;
+  border-color: var(--khaki-main);
+}
+
+/* 3) NOTLAR & MESAJLAŞMA SEKMESİ */
+.subtab-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: rgba(255,255,255,0.7);
+  padding: 5px;
+  border-radius: 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--lilac-soft);
+}
+
+.subtab-btn {
+  border: none;
+  padding: 9px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  font-weight: 800;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.subtab-btn.active {
+  background: linear-gradient(135deg, var(--pink-soft), var(--lilac-soft));
+  color: var(--text-dark);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.notes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.sticky-note-card {
+  padding: 13px;
+  border-radius: 18px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 135px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+  transition: transform 0.2s ease;
+}
+
+.sticky-note-card.note-pink {
+  background: linear-gradient(155deg, #FFF0F6, #FAD4E6);
+  border: 1.5px solid #F2ACC9;
+}
+
+.sticky-note-card.note-lilac {
+  background: linear-gradient(155deg, #F5F0FC, #E2D4F8);
+  border: 1.5px solid #C6B0EC;
+}
+
+.sticky-note-card.note-khaki {
+  background: linear-gradient(155deg, #F2F7F0, #D9E8D2);
+  border: 1.5px solid #B2CCA7;
+}
+
+.note-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  margin-bottom: 5px;
+}
+
+.note-body {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-dark);
+  flex: 1;
+  white-space: pre-wrap;
+}
+
+.note-footer {
+  margin-top: 9px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(0,0,0,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.delete-mini-btn {
+  border: none;
+  background: rgba(255,255,255,0.6);
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+/* Canlı Mesajlaşma (Sohbet) */
+.chat-box-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 265px);
+  min-height: 360px;
+}
+
+.chat-messages-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: 20px;
+  border: 1.5px solid var(--lilac-soft);
+  margin-bottom: 10px;
+}
+
+.chat-bubble-row {
+  display: flex;
+  flex-direction: column;
+  max-width: 82%;
+}
+
+.chat-bubble-row.mine {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.chat-bubble-row.theirs {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.chat-sender-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+  padding: 0 6px;
+}
+
+.chat-bubble {
+  padding: 10px 13px;
+  border-radius: 18px;
+  font-size: 13px;
+  line-height: 1.4;
+  position: relative;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+}
+
+.chat-bubble-row.mine .chat-bubble {
+  background: linear-gradient(135deg, var(--pink-soft), var(--lilac-soft));
+  color: var(--text-dark);
+  border-bottom-right-radius: 4px;
+}
+
+.chat-bubble-row.theirs .chat-bubble {
+  background: linear-gradient(135deg, #fff, var(--khaki-light));
+  border: 1px solid var(--khaki-soft);
+  color: var(--text-dark);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-sticker-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.75);
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 5px;
+}
+
+.chat-photo {
+  width: 100%;
+  max-width: 210px;
+  border-radius: 13px;
+  margin-top: 5px;
+  display: block;
+}
+
+.chat-reactions-bar {
+  display: flex;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.reaction-chip {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.85);
+  border: 1px solid var(--pink-soft);
+  cursor: pointer;
+}
+
+.sticker-quick-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 7px;
+}
+
+.sticker-pill {
+  border: 1px solid var(--lilac-soft);
+  background: rgba(255,255,255,0.85);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chat-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.chat-text-input {
+  flex: 1;
+  padding: 11px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--lilac-soft);
+  background: #fff;
+  font-size: 13.5px;
+  outline: none;
+}
+
+/* 4) ORTAK TAKVİM & ANILAR SEKMESİ */
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.cal-month-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.cal-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+
+.cal-day-cell {
+  aspect-ratio: 1;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1.5px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  position: relative;
+  cursor: pointer;
+}
+
+.cal-day-cell.today {
+  border-color: var(--pink-main);
+  background: var(--pink-light);
+  font-weight: 900;
+}
+
+.cal-day-cell.selected {
+  background: linear-gradient(135deg, var(--pink-main), var(--lilac-main));
+  color: #fff;
+}
+
+.cal-dots {
+  display: flex;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.cal-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.cal-dot.memory-dot {
+  background: var(--pink-deep);
+}
+
+.cal-dot.event-dot {
+  background: var(--khaki-deep);
+}
+
+/* Anı Albümü Polaroid Kartları */
+.memories-polaroid-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.polaroid-card {
+  background: #fff;
+  padding: 12px 12px 14px;
+  border-radius: 20px;
+  box-shadow: 0 8px 22px rgba(74, 59, 92, 0.1);
+  border: 1.5px solid var(--pink-soft);
+}
+
+.polaroid-img-wrap {
+  width: 100%;
+  height: 195px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--pink-light), var(--lilac-light), var(--khaki-light));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  position: relative;
+}
+
+.polaroid-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.polaroid-date-badge {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  background: rgba(59, 46, 69, 0.8);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.polaroid-mood-badge {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Form Elemanları */
+.form-group {
+  margin-bottom: 10px;
+}
+
+.form-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.form-input, .form-textarea, .form-select {
+  width: 100%;
+  padding: 10px 13px;
+  border-radius: 13px;
+  border: 1.5px solid var(--lilac-soft);
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  color: var(--text-dark);
+  outline: none;
+}
+
+.form-textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+/* Alt Navigasyon Sekme Çubuğu (iOS Tab Bar) */
+.ios-tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  padding: 8px 10px calc(env(safe-area-inset-bottom, 10px) + 6px);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(200, 182, 226, 0.35);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  z-index: 50;
+}
+
+.tab-btn {
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 2px;
+  border-radius: 14px;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn .tab-icon {
+  font-size: 20px;
+  transition: transform 0.2s ease;
+}
+
+.tab-btn.active {
+  color: var(--pink-deep);
+  background: linear-gradient(135deg, rgba(247, 198, 217, 0.4), rgba(214, 199, 235, 0.4), rgba(199, 214, 191, 0.4));
+}
+
+.tab-btn.active .tab-icon {
+  transform: translateY(-2px) scale(1.1);
+}
+
+/* Modal Pencereler */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(45, 34, 56, 0.55);
+  backdrop-filter: blur(6px);
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-backdrop.open {
+  display: flex;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 410px;
+  max-height: 86dvh;
+  overflow-y: auto;
+  background: #FAF7F9;
+  border-radius: 26px;
+  padding: 20px;
+  border: 2px solid var(--pink-soft);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
