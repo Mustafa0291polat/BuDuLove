@@ -77,12 +77,18 @@ function sanitizeRoomForClient(room) {
   return copy;
 }
 
+let detectedExternalCloudUrl = process.env.RENDER_EXTERNAL_URL || null;
+
 // HTTP Güvenlik ve Önbellek (Cache) Başlıkları
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=()');
+  const hostHeader = req.headers.host || '';
+  if (!detectedExternalCloudUrl && hostHeader && (hostHeader.includes('onrender.com') || (!hostHeader.startsWith('localhost') && !hostHeader.startsWith('127.0.0.1') && !/^\d+\.\d+\.\d+\.\d+/.test(hostHeader)))) {
+    detectedExternalCloudUrl = `https://${hostHeader}`;
+  }
   if (req.path === '/' || req.path.endsWith('.html') || req.path.endsWith('.js') || req.path.endsWith('.css')) {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
@@ -90,6 +96,18 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, timestamp: Date.now(), rooms: Object.keys(db).length });
+});
+
+// Render.com 15 dakika uyku moduna girmesin diye her 9 dakikada bir kendi kendini uyandıran Keep-Alive sistemi
+setInterval(() => {
+  const target = detectedExternalCloudUrl || process.env.RENDER_EXTERNAL_URL;
+  if (target) {
+    fetch(`${target.replace(/\/$/, '')}/api/health`).catch(() => {});
+  }
+}, 9 * 60 * 1000);
 
 app.use(cors());
 app.use(express.json({ limit: '20mb' }));
@@ -517,6 +535,10 @@ app.post('/api/auth/verify', (req, res) => {
     failedPinAttempts.delete(clientIp);
     const activePinHash = getRoomPinHash(room);
     const token = createAuthToken(room.roomCode, activePinHash);
+    if (req.body.clientBackup && typeof req.body.clientBackup === 'object') {
+      mergeRoomBackupIntoServer(room, req.body.clientBackup);
+      saveDB(db);
+    }
     const charRole = req.body.character === 'dudu' ? 'dudu' : (req.body.character === 'bubu' ? 'bubu' : null);
     const uName = req.body.userName || (charRole === 'dudu' ? room.coupleInfo.duduName : room.coupleInfo.bubuName);
     if (charRole) {
@@ -683,15 +705,148 @@ function mergeArrayById(serverArr, clientArr, deletedIds = []) {
   const delSet = new Set(deletedIds);
   const map = new Map();
   (serverArr || []).forEach((item) => {
-    if (item && item.id && !delSet.has(item.id)) map.set(item.id, item);
+    if (item && item.id && !delSet.has(item.id)) {
+      map.set(item.id, { ...item });
+    }
   });
   (clientArr || []).forEach((item) => {
-    if (item && item.id && !delSet.has(item.id) && !map.has(item.id)) {
-      map.set(item.id, item);
+    if (!item || !item.id || delSet.has(item.id)) return;
+    if (!map.has(item.id)) {
+      map.set(item.id, { ...item });
+    } else {
+      const existing = map.get(item.id);
+      const clientNewer = item.updatedAt && (!existing.updatedAt || item.updatedAt > existing.updatedAt);
+      const merged = clientNewer ? { ...existing, ...item } : { ...item, ...existing };
+      // Eğer bir tarafta fotoğraf veya ses verisi (image / audioUrl) varsa asla boş olanla ezme!
+      if (!merged.image && (existing.image || item.image)) {
+        merged.image = existing.image || item.image;
+      }
+      if (!merged.audioUrl && (existing.audioUrl || item.audioUrl)) {
+        merged.audioUrl = existing.audioUrl || item.audioUrl;
+      }
+      if (Array.isArray(existing.reactions) || Array.isArray(item.reactions)) {
+        merged.reactions = Array.from(new Set([...(existing.reactions || []), ...(item.reactions || [])]));
+      }
+      map.set(item.id, merged);
     }
   });
   return Array.from(map.values());
 }
+
+function mergeRoomBackupIntoServer(room, clientBackup) {
+  if (!room || !clientBackup || typeof clientBackup !== 'object') return false;
+
+  if (Array.isArray(clientBackup.deletedIds)) {
+    room.deletedIds = Array.from(new Set([...(room.deletedIds || []), ...clientBackup.deletedIds, LEGACY_REMOVED_SONG_ID]));
+  }
+
+  room.notes = mergeArrayById(room.notes, clientBackup.notes, room.deletedIds);
+  room.messages = mergeArrayById(room.messages, clientBackup.messages, room.deletedIds)
+    .sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''));
+  room.memories = mergeArrayById(room.memories, clientBackup.memories, room.deletedIds);
+  room.events = mergeArrayById(room.events, clientBackup.events, room.deletedIds)
+    .sort((a, b) => ((a.date || '') + (a.time || '')).localeCompare((b.date || '') + (b.time || '')));
+  room.songs = mergeArrayById(room.songs, clientBackup.songs, room.deletedIds).filter(
+    (s) => s && s.id !== LEGACY_REMOVED_SONG_ID && s.audioUrl !== '/assets/gokhan-turkmen-derdim.m4a'
+  );
+  room.affectionHistory = mergeArrayById(room.affectionHistory, clientBackup.affectionHistory, room.deletedIds)
+    .slice(0, 50);
+
+  if (clientBackup.coupleInfo && typeof clientBackup.coupleInfo === 'object') {
+    if (clientBackup.coupleInfo.theme) room.coupleInfo.theme = clientBackup.coupleInfo.theme;
+    if (clientBackup.coupleInfo.bubuName && room.coupleInfo.bubuName === 'Bubu') {
+      room.coupleInfo.bubuName = clientBackup.coupleInfo.bubuName;
+    }
+    if (clientBackup.coupleInfo.duduName && room.coupleInfo.duduName === 'Dudu') {
+      room.coupleInfo.duduName = clientBackup.coupleInfo.duduName;
+    }
+    if (typeof clientBackup.coupleInfo.totalInteractions === 'number') {
+      room.coupleInfo.totalInteractions = Math.max(room.coupleInfo.totalInteractions || 0, clientBackup.coupleInfo.totalInteractions);
+    }
+  }
+
+  if (clientBackup.games && typeof clientBackup.games === 'object') {
+    const cg = clientBackup.games;
+    if (!room.games) room.games = getDefaultRoomData(room.roomCode).games;
+
+    // XOX Ödülü, Ödül Geçmişi ve Skorlar
+    if (cg.xox) {
+      if (!room.games.xox) room.games.xox = getDefaultRoomData(room.roomCode).games.xox;
+      if (Array.isArray(cg.xox.rewardHistory)) {
+        room.games.xox.rewardHistory = mergeArrayById(room.games.xox.rewardHistory, cg.xox.rewardHistory, room.deletedIds);
+      }
+      if (!room.games.xox.reward && cg.xox.reward) {
+        room.games.xox.reward = cg.xox.reward;
+      }
+      if (cg.xox.scores) {
+        room.games.xox.scores = {
+          bubu: Math.max(room.games.xox.scores?.bubu || 0, cg.xox.scores.bubu || 0),
+          dudu: Math.max(room.games.xox.scores?.dudu || 0, cg.xox.scores.dudu || 0)
+        };
+      }
+    }
+
+    // Çift Uyum Kartları ve Cevapları
+    if (Array.isArray(cg.quizQuestions)) {
+      room.games.quizQuestions = mergeArrayById(room.games.quizQuestions, cg.quizQuestions, room.deletedIds)
+        .filter((q) => q && !['q0', 'q1', 'q2'].includes(q.id));
+    }
+    if (cg.quizAnswers && typeof cg.quizAnswers === 'object') {
+      if (!room.games.quizAnswers) room.games.quizAnswers = {};
+      for (const [qId, ansObj] of Object.entries(cg.quizAnswers)) {
+        if (!ansObj || typeof ansObj !== 'object') continue;
+        room.games.quizAnswers[qId] = {
+          ...(ansObj || {}),
+          ...(room.games.quizAnswers[qId] || {})
+        };
+      }
+    }
+
+    // Dart Hedef Fotoğrafı & Kafa Noktası
+    if (cg.dartTarget && typeof cg.dartTarget === 'object') {
+      if (!room.games.dartTarget) room.games.dartTarget = { image: null, headX: 0.5, headY: 0.34 };
+      if (!room.games.dartTarget.image && cg.dartTarget.image) {
+        room.games.dartTarget.image = cg.dartTarget.image;
+        if (typeof cg.dartTarget.headX === 'number') room.games.dartTarget.headX = cg.dartTarget.headX;
+        if (typeof cg.dartTarget.headY === 'number') room.games.dartTarget.headY = cg.dartTarget.headY;
+      }
+    }
+
+    // Oyun Rekorları
+    for (const scoreKey of ['balloonScores', 'loveRushScores', 'dartScores']) {
+      if (cg[scoreKey]) {
+        room.games[scoreKey] = {
+          bubu: Math.max(room.games[scoreKey]?.bubu || 0, cg[scoreKey].bubu || 0),
+          dudu: Math.max(room.games[scoreKey]?.dudu || 0, cg[scoreKey].dudu || 0)
+        };
+      }
+    }
+  }
+
+  return true;
+}
+
+// Tam Cihaz Yedeğini (Fotoğraflar, Anılar, Şarkılar, Planlar, Mesajlar dahil) Sunucuya Geri Yükleme Endpointi
+app.post('/api/room/:code/sync-backup', (req, res) => {
+  try {
+    const room = getRoom(req.params.code);
+    const { authToken, pin, clientBackup } = req.body || {};
+    if (!verifyRoomAuth(room, { pin, authToken })) {
+      return res.status(401).json({ success: false, error: 'PIN_REQUIRED' });
+    }
+    if (clientBackup && typeof clientBackup === 'object') {
+      mergeRoomBackupIntoServer(room, clientBackup);
+      saveDB(db);
+      io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+    }
+    return res.json({
+      success: true,
+      room: sanitizeRoomForClient(room)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // ============================================================================
 // ÇEVRİMİÇİ (ONLINE PRESENCE) TAKİP VE UYGULAMAYA GİRİŞ BİLDİRİM SİSTEMİ
@@ -861,28 +1016,7 @@ io.on('connection', (socket) => {
 
     // Eğer telefonda kayıtlı yedek veriler varsa sunucuyla birleştir (Veri kaybını %100 önler)
     if (clientBackup && typeof clientBackup === 'object') {
-      if (Array.isArray(clientBackup.deletedIds)) {
-        room.deletedIds = Array.from(new Set([...(room.deletedIds || []), ...clientBackup.deletedIds]));
-      }
-      room.notes = mergeArrayById(room.notes, clientBackup.notes, room.deletedIds);
-      room.messages = mergeArrayById(room.messages, clientBackup.messages, room.deletedIds)
-        .sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''));
-      room.memories = mergeArrayById(room.memories, clientBackup.memories, room.deletedIds);
-      room.events = mergeArrayById(room.events, clientBackup.events, room.deletedIds)
-        .sort((a, b) => ((a.date || '') + (a.time || '')).localeCompare((b.date || '') + (b.time || '')));
-      room.songs = mergeArrayById(room.songs, clientBackup.songs, room.deletedIds).filter(
-        (s) => s && s.id !== LEGACY_REMOVED_SONG_ID && s.audioUrl !== '/assets/gokhan-turkmen-derdim.m4a'
-      );
-      if (clientBackup.games?.xox?.rewardHistory) {
-        room.games.xox.rewardHistory = mergeArrayById(
-          room.games.xox.rewardHistory,
-          clientBackup.games.xox.rewardHistory,
-          room.deletedIds
-        );
-      }
-      if (clientBackup.coupleInfo && clientBackup.coupleInfo.theme) {
-        room.coupleInfo.theme = clientBackup.coupleInfo.theme;
-      }
+      mergeRoomBackupIntoServer(room, clientBackup);
     }
 
     if (character === 'bubu' && userName) {

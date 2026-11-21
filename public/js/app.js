@@ -149,47 +149,317 @@ function formatTimeShort(isoStr) {
 }
 
 // ============================================================================
-// KALICI YEREL VERİTABANI YEDEĞİ (Girip çıkınca hiçbir şey silinmesin!)
+// KALICI YEREL VERİTABANI YEDEĞİ (IndexedDB 500MB+ & localStorage Çift Katman!)
 // ============================================================================
 function getBackupKey() {
   return 'budulove_db_v4_' + currentRoomCode;
 }
 
+function getMetaBackupKey() {
+  return 'budulove_meta_v5_' + currentRoomCode;
+}
+
+const IDB_NAME = 'BuDuLovePermanentDB';
+const IDB_STORE = 'roomBackups';
+
+function openPermanentIDB() {
+  return new Promise((resolve) => {
+    if (!('indexedDB' in window)) return resolve(null);
+    try {
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          db.createObjectStore(IDB_STORE);
+        }
+      };
+      req.onsuccess = (e) => resolve(e.target.result);
+      req.onerror = () => resolve(null);
+    } catch (e) {
+      resolve(null);
+    }
+  });
+}
+
+async function saveBackupToIDB(roomCodeKey, stateObj) {
+  try {
+    const db = await openPermanentIDB();
+    if (!db) return;
+    await new Promise((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(stateObj, roomCodeKey);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    });
+  } catch (e) {}
+}
+
+async function loadBackupFromIDB(roomCodeKey) {
+  try {
+    const db = await openPermanentIDB();
+    if (!db) return null;
+    return await new Promise((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(roomCodeKey);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch (e) {
+    return null;
+  }
+}
+
+function sanitizeBackupSongs(stateObj) {
+  if (stateObj && Array.isArray(stateObj.songs)) {
+    stateObj.songs = stateObj.songs.filter(
+      (s) => s && s.id !== 'song-gokhan-turkmen-derdim' && s.audioUrl !== '/assets/gokhan-turkmen-derdim.m4a'
+    );
+  }
+  return stateObj;
+}
+
+function buildLightweightStateCopy(state) {
+  if (!state || typeof state !== 'object') return null;
+  return {
+    roomCode: state.roomCode || currentRoomCode,
+    coupleInfo: state.coupleInfo ? { ...state.coupleInfo } : undefined,
+    deletedIds: Array.isArray(state.deletedIds) ? [...state.deletedIds] : [],
+    notes: Array.isArray(state.notes) ? state.notes : [],
+    events: Array.isArray(state.events) ? state.events : [],
+    affectionHistory: Array.isArray(state.affectionHistory) ? state.affectionHistory.slice(0, 30) : [],
+    songs: (state.songs || [])
+      .filter((s) => s && s.id !== 'song-gokhan-turkmen-derdim' && s.audioUrl !== '/assets/gokhan-turkmen-derdim.m4a')
+      .map((s) => (s.audioUrl && s.audioUrl.length > 4000 ? { ...s, audioUrl: '' } : s)),
+    memories: (state.memories || []).map((m) => (m && m.image && m.image.length > 4000 ? { ...m, image: null } : m)),
+    messages: (state.messages || []).slice(-120).map((m) => (m && m.image && m.image.length > 4000 ? { ...m, image: null } : m)),
+    games: state.games
+      ? {
+          balloonScores: state.games.balloonScores,
+          loveRushScores: state.games.loveRushScores,
+          dartScores: state.games.dartScores,
+          quizQuestions: state.games.quizQuestions || [],
+          quizAnswers: state.games.quizAnswers || {},
+          xox: state.games.xox
+            ? {
+                reward: state.games.xox.reward || '',
+                rewardHistory: state.games.xox.rewardHistory || [],
+                scores: state.games.xox.scores || { bubu: 0, dudu: 0 }
+              }
+            : undefined
+        }
+      : undefined
+  };
+}
+
 function saveLocalBackup(state) {
   if (!state) return;
+  const cleanState = sanitizeBackupSongs(state);
+  // 1) Küçük ve garantili metadata yedeği (5MB sınırına ASLA takılmaz; şarkılar, planlar, notlar, kartlar %100 korunur!)
   try {
-    localStorage.setItem(getBackupKey(), JSON.stringify(state));
+    const lightCopy = buildLightweightStateCopy(cleanState);
+    if (lightCopy) {
+      localStorage.setItem(getMetaBackupKey(), JSON.stringify(lightCopy));
+    }
   } catch (e) {}
+
+  // 2) Tam localStorage yedeği (5MB altındaysa anında senkron erişim)
+  try {
+    localStorage.setItem(getBackupKey(), JSON.stringify(cleanState));
+  } catch (e) {}
+
+  // 3) 500MB+ kapasiteli IndexedDB kalıcı yedeği (Tüm fotoğraflar, anılar, dart fotoğrafı ve ses dosyaları dahil!)
+  saveBackupToIDB(getBackupKey(), cleanState);
 }
 
 function loadLocalBackup() {
+  let fullParsed = null;
+  let metaParsed = null;
   try {
-    const raw = localStorage.getItem(getBackupKey());
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && Array.isArray(parsed.songs)) {
-        parsed.songs = parsed.songs.filter(
-          (s) => s && s.id !== 'song-gokhan-turkmen-derdim' && s.audioUrl !== '/assets/gokhan-turkmen-derdim.m4a'
-        );
-      }
-      return parsed;
-    }
+    const rawFull = localStorage.getItem(getBackupKey());
+    if (rawFull) fullParsed = sanitizeBackupSongs(JSON.parse(rawFull));
   } catch (e) {}
-  return null;
+  try {
+    const rawMeta = localStorage.getItem(getMetaBackupKey());
+    if (rawMeta) metaParsed = sanitizeBackupSongs(JSON.parse(rawMeta));
+  } catch (e) {}
+
+  if (fullParsed && metaParsed) {
+    return mergeRoomStatesClient(fullParsed, metaParsed).merged;
+  }
+  return fullParsed || metaParsed || null;
 }
 
-// Hızlı bağlantı (0ms join_room) için büyük Base64 fotoğrafları hariç tutan hafif yedek
-function getLightweightClientBackup() {
-  const full = loadLocalBackup();
-  if (!full || typeof full !== 'object') return null;
-  return {
-    coupleInfo: full.coupleInfo,
-    deletedIds: full.deletedIds || [],
-    notes: full.notes || [],
-    events: full.events || [],
-    songs: (full.songs || []).map((s) => (s && s.audioUrl && s.audioUrl.length > 2000 ? { ...s, audioUrl: '' } : s)),
-    games: full.games?.xox?.rewardHistory ? { xox: { rewardHistory: full.games.xox.rewardHistory } } : undefined
+async function loadFullLocalBackupAsync() {
+  const syncBackup = loadLocalBackup();
+  const idbBackup = sanitizeBackupSongs(await loadBackupFromIDB(getBackupKey()));
+  if (idbBackup && syncBackup) {
+    return mergeRoomStatesClient(idbBackup, syncBackup).merged;
+  }
+  return idbBackup || syncBackup || null;
+}
+
+function getLightweightClientBackup(sourceState = null) {
+  const full = sourceState || loadLocalBackup();
+  return buildLightweightStateCopy(full);
+}
+
+function mergeArrayByIdClient(primaryArr, secondaryArr, deletedIds = []) {
+  const delSet = new Set(deletedIds);
+  const map = new Map();
+  let addedFromSecondary = false;
+
+  (primaryArr || []).forEach((item) => {
+    if (item && item.id && !delSet.has(item.id)) {
+      map.set(item.id, { ...item });
+    }
+  });
+
+  (secondaryArr || []).forEach((item) => {
+    if (!item || !item.id || delSet.has(item.id)) return;
+    if (!map.has(item.id)) {
+      map.set(item.id, { ...item });
+      addedFromSecondary = true;
+    } else {
+      const existing = map.get(item.id);
+      const secNewer = item.updatedAt && (!existing.updatedAt || item.updatedAt > existing.updatedAt);
+      const merged = secNewer ? { ...existing, ...item } : { ...item, ...existing };
+      if (!existing.image && item.image) {
+        merged.image = item.image;
+        addedFromSecondary = true;
+      }
+      if (!existing.audioUrl && item.audioUrl) {
+        merged.audioUrl = item.audioUrl;
+        addedFromSecondary = true;
+      }
+      if (Array.isArray(existing.reactions) || Array.isArray(item.reactions)) {
+        merged.reactions = Array.from(new Set([...(existing.reactions || []), ...(item.reactions || [])]));
+      }
+      map.set(item.id, merged);
+    }
+  });
+
+  return { list: Array.from(map.values()), addedFromSecondary };
+}
+
+// Sunucudan gelen veri boş/eksik olsa bile telefonun kalıcı yedeğini ASLA ezmez; ikisini birleştirir!
+function mergeRoomStatesClient(serverRoom, localBackup) {
+  if (!serverRoom) return { merged: localBackup || null, serverWasMissingData: false };
+  if (!localBackup) return { merged: sanitizeBackupSongs(serverRoom), serverWasMissingData: false };
+
+  let serverWasMissingData = false;
+  const deletedIds = Array.from(new Set([
+    ...(serverRoom.deletedIds || []),
+    ...(localBackup.deletedIds || []),
+    'song-gokhan-turkmen-derdim'
+  ]));
+
+  const merged = {
+    ...localBackup,
+    ...serverRoom,
+    deletedIds,
+    coupleInfo: {
+      ...(localBackup.coupleInfo || {}),
+      ...(serverRoom.coupleInfo || {})
+    }
   };
+
+  const songsRes = mergeArrayByIdClient(serverRoom.songs, localBackup.songs, deletedIds);
+  merged.songs = songsRes.list.filter((s) => s && s.id !== 'song-gokhan-turkmen-derdim' && s.audioUrl !== '/assets/gokhan-turkmen-derdim.m4a');
+  if (songsRes.addedFromSecondary) serverWasMissingData = true;
+
+  const memRes = mergeArrayByIdClient(serverRoom.memories, localBackup.memories, deletedIds);
+  merged.memories = memRes.list;
+  if (memRes.addedFromSecondary) serverWasMissingData = true;
+
+  const evtRes = mergeArrayByIdClient(serverRoom.events, localBackup.events, deletedIds);
+  merged.events = evtRes.list.sort((a, b) => ((a.date || '') + (a.time || '')).localeCompare((b.date || '') + (b.time || '')));
+  if (evtRes.addedFromSecondary) serverWasMissingData = true;
+
+  const noteRes = mergeArrayByIdClient(serverRoom.notes, localBackup.notes, deletedIds);
+  merged.notes = noteRes.list;
+  if (noteRes.addedFromSecondary) serverWasMissingData = true;
+
+  const msgRes = mergeArrayByIdClient(serverRoom.messages, localBackup.messages, deletedIds);
+  merged.messages = msgRes.list.sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''));
+  if (msgRes.addedFromSecondary) serverWasMissingData = true;
+
+  const affRes = mergeArrayByIdClient(serverRoom.affectionHistory, localBackup.affectionHistory, deletedIds);
+  merged.affectionHistory = affRes.list.slice(0, 50);
+
+  if (serverRoom.games || localBackup.games) {
+    const sg = serverRoom.games || {};
+    const lg = localBackup.games || {};
+    merged.games = { ...lg, ...sg };
+
+    const quizRes = mergeArrayByIdClient(sg.quizQuestions, lg.quizQuestions, deletedIds);
+    merged.games.quizQuestions = quizRes.list.filter((q) => q && !['q0', 'q1', 'q2'].includes(q.id));
+    if (quizRes.addedFromSecondary) serverWasMissingData = true;
+
+    const mergedQuizAns = { ...(lg.quizAnswers || {}) };
+    for (const [qId, ans] of Object.entries(sg.quizAnswers || {})) {
+      mergedQuizAns[qId] = { ...(mergedQuizAns[qId] || {}), ...(ans || {}) };
+    }
+    merged.games.quizAnswers = mergedQuizAns;
+
+    if (sg.xox || lg.xox) {
+      const sx = sg.xox || {};
+      const lx = lg.xox || {};
+      const rewRes = mergeArrayByIdClient(sx.rewardHistory, lx.rewardHistory, deletedIds);
+      if (rewRes.addedFromSecondary) serverWasMissingData = true;
+      merged.games.xox = {
+        ...lx,
+        ...sx,
+        reward: sx.reward || lx.reward || '',
+        rewardHistory: rewRes.list,
+        scores: {
+          bubu: Math.max(sx.scores?.bubu || 0, lx.scores?.bubu || 0),
+          dudu: Math.max(sx.scores?.dudu || 0, lx.scores?.dudu || 0)
+        }
+      };
+    }
+
+    if (lg.dartTarget?.image && !sg.dartTarget?.image) {
+      merged.games.dartTarget = { ...lg.dartTarget };
+      serverWasMissingData = true;
+    }
+
+    for (const sk of ['balloonScores', 'loveRushScores', 'dartScores']) {
+      merged.games[sk] = {
+        bubu: Math.max(sg[sk]?.bubu || 0, lg[sk]?.bubu || 0),
+        dudu: Math.max(sg[sk]?.dudu || 0, lg[sk]?.dudu || 0)
+      };
+    }
+  }
+
+  return { merged, serverWasMissingData };
+}
+
+let isSyncingFullBackup = false;
+async function pushFullBackupToServer(stateToSync) {
+  const token = getAuthToken();
+  if (!token || !stateToSync || isSyncingFullBackup) return;
+  isSyncingFullBackup = true;
+  try {
+    await fetch(`/api/room/${currentRoomCode}/sync-backup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        authToken: token,
+        clientBackup: stateToSync
+      })
+    });
+  } catch (e) {
+  } finally {
+    isSyncingFullBackup = false;
+  }
+}
+
+function recordLocalDeletion(itemId) {
+  if (!roomState || !itemId) return;
+  if (!Array.isArray(roomState.deletedIds)) roomState.deletedIds = [];
+  if (!roomState.deletedIds.includes(itemId)) {
+    roomState.deletedIds.push(itemId);
+  }
 }
 
 let presenceHeartbeatTimer = null;
@@ -365,6 +635,8 @@ function clearPinDigits() {
 async function submitPinLogin() {
   if (!currentPinInput) return;
   try {
+    // ÖNCE cihazın kalıcı yedeğini (IndexedDB + localStorage) oku ki sunucu uykudan boş uyandıysa veriler ASLA ezilmesin!
+    const existingLocalBackup = await loadFullLocalBackupAsync();
     const res = await fetch('/api/auth/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -372,7 +644,8 @@ async function submitPinLogin() {
         roomCode: currentRoomCode,
         pin: currentPinInput,
         character: myCharacter,
-        userName: getMyDisplayName()
+        userName: getMyDisplayName(),
+        clientBackup: getLightweightClientBackup(existingLocalBackup)
       })
     });
     const data = await res.json();
@@ -383,15 +656,22 @@ async function submitPinLogin() {
       updatePinDotsUI();
       document.getElementById('pinLockOverlay').classList.add('unlocked');
 
-      // Sunucudan gelen oda ve çevrimiçi bilgisini 0ms anında ekrana yansıt!
+      // Sunucudan gelen oda ve çevrimiçi bilgisini yerel kalıcı yedekle akıllıca BİRLEŞTİR!
       if (data.presence) {
         partnerPresenceState = data.presence;
       } else {
         partnerPresenceState[myCharacter] = true;
       }
       if (data.room) {
-        roomState = data.room;
+        const { merged, serverWasMissingData } = mergeRoomStatesClient(data.room, existingLocalBackup);
+        roomState = merged;
         saveLocalBackup(roomState);
+        renderAllFromState();
+        if (serverWasMissingData) {
+          pushFullBackupToServer(roomState);
+        }
+      } else if (existingLocalBackup) {
+        roomState = existingLocalBackup;
         renderAllFromState();
       }
       updateCharacterRoleUI();
@@ -406,7 +686,7 @@ async function submitPinLogin() {
           roomCode: currentRoomCode,
           character: myCharacter,
           userName: getMyDisplayName(),
-          clientBackup: getLightweightClientBackup(),
+          clientBackup: getLightweightClientBackup(roomState || existingLocalBackup),
           authToken: data.authToken
         });
       }
@@ -697,11 +977,16 @@ function initSocketConnection() {
       document.getElementById('pinLockOverlay').classList.remove('unlocked');
     });
 
-    socket.on('room_state', (room) => {
-      roomState = room;
+    socket.on('room_state', async (room) => {
+      const localBackup = roomState || (await loadFullLocalBackupAsync());
+      const { merged, serverWasMissingData } = mergeRoomStatesClient(room, localBackup);
+      roomState = merged;
       saveLocalBackup(roomState);
       renderAllFromState();
       updatePartnerPresenceUI();
+      if (serverWasMissingData) {
+        pushFullBackupToServer(roomState);
+      }
       if (!forcedRole && !localStorage.getItem(storagePrefix + 'charChosenOnce')) {
         openCharSelectModal();
       }
@@ -1893,6 +2178,12 @@ function saveCustomXoxReward() {
 }
 
 function deleteXoxRewardItem(rewardId) {
+  recordLocalDeletion(rewardId);
+  if (roomState?.games?.xox?.rewardHistory) {
+    roomState.games.xox.rewardHistory = roomState.games.xox.rewardHistory.filter((r) => r.id !== rewardId);
+    saveLocalBackup(roomState);
+    renderXoxBoard();
+  }
   if (socket && socket.connected) {
     socket.emit('delete_xox_reward', {
       roomCode: currentRoomCode,
@@ -2051,6 +2342,12 @@ function renderCoupleQuiz() {
 }
 
 function deleteQuizQuestion(questionId) {
+  recordLocalDeletion(questionId);
+  if (roomState?.games?.quizQuestions) {
+    roomState.games.quizQuestions = roomState.games.quizQuestions.filter((q) => q.id !== questionId);
+    saveLocalBackup(roomState);
+    renderCoupleQuiz();
+  }
   if (socket && socket.connected) {
     socket.emit('delete_quiz_question', {
       roomCode: currentRoomCode,
@@ -2454,6 +2751,14 @@ async function postNewSongToServer(songPayload) {
     });
     const data = await res.json();
     if (res.ok && data.success) {
+      if (data.song && roomState) {
+        if (!Array.isArray(roomState.songs)) roomState.songs = [];
+        if (!roomState.songs.some((s) => s.id === data.song.id)) {
+          roomState.songs.unshift(data.song);
+        }
+        saveLocalBackup(roomState);
+        renderSavedSongsList();
+      }
       setTimeout(() => playSongByIndex(0), 300);
       return true;
     }
@@ -2710,6 +3015,12 @@ function playPrevSong() {
 }
 
 function deleteSongItem(songId) {
+  recordLocalDeletion(songId);
+  if (roomState && Array.isArray(roomState.songs)) {
+    roomState.songs = roomState.songs.filter((s) => s.id !== songId);
+    saveLocalBackup(roomState);
+    renderSavedSongsList();
+  }
   if (socket && socket.connected) {
     socket.emit('delete_song', { roomCode: currentRoomCode, songId });
   }
@@ -2808,6 +3119,12 @@ function startEditStickyNote(noteId) {
 }
 
 function deleteStickyNote(noteId) {
+  recordLocalDeletion(noteId);
+  if (roomState && Array.isArray(roomState.notes)) {
+    roomState.notes = roomState.notes.filter((n) => n.id !== noteId);
+    saveLocalBackup(roomState);
+    renderStickyNotes();
+  }
   if (socket && socket.connected) {
     socket.emit('delete_note', { roomCode: currentRoomCode, noteId });
   }
@@ -3261,6 +3578,12 @@ function saveNewMemory() {
 }
 
 function deleteMemoryItem(memoryId) {
+  recordLocalDeletion(memoryId);
+  if (roomState && Array.isArray(roomState.memories)) {
+    roomState.memories = roomState.memories.filter((m) => m.id !== memoryId);
+    saveLocalBackup(roomState);
+    renderCalendarAndEvents();
+  }
   if (socket && socket.connected) {
     socket.emit('delete_memory', { roomCode: currentRoomCode, memoryId });
   }
@@ -3352,6 +3675,12 @@ function toggleEventDone(eventId) {
 }
 
 function deleteEventItem(eventId) {
+  recordLocalDeletion(eventId);
+  if (roomState && Array.isArray(roomState.events)) {
+    roomState.events = roomState.events.filter((e) => e.id !== eventId);
+    saveLocalBackup(roomState);
+    renderCalendarAndEvents();
+  }
   if (socket && socket.connected) {
     socket.emit('delete_event', { roomCode: currentRoomCode, eventId });
   }
