@@ -282,9 +282,14 @@ async function sendPushToRoom(room, { title, body, fromChar, url = '/', tag = 'b
   });
 
   const validSubs = [];
+  const mutedMap = room.mutedCharacters || {};
   for (const item of room.pushSubscriptions) {
     if (!item || !item.subscription || !item.subscription.endpoint) continue;
-    // Eğer sendToAll değilse ve abonenin karakteri gönderen karakterden farklıysa (veya karakter belirtilmemişse) gönder
+    // Eğer kullanıcı bildirimleri çan butonundan kapattıysa (muted) arka plan bildirimi gönderme!
+    if (item.muted || (item.character && mutedMap[item.character])) {
+      validSubs.push(item);
+      continue;
+    }
     const shouldSend = sendToAll || !fromChar || !item.character || item.character !== fromChar;
     if (!shouldSend) {
       validSubs.push(item);
@@ -308,6 +313,25 @@ async function sendPushToRoom(room, { title, body, fromChar, url = '/', tag = 'b
 // VAPID Public Key Endpoint
 app.get('/api/vapid-public-key', (req, res) => {
   res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+// Bildirimleri Açma / Kapatma (Çan Kontrolü) Endpointi
+app.post('/api/room/:code/push-toggle', (req, res) => {
+  const room = getRoom(req.params.code);
+  const { character, enabled, endpoint } = req.body;
+  if (!room.mutedCharacters) room.mutedCharacters = {};
+  if (character) {
+    room.mutedCharacters[character] = !enabled;
+  }
+  if (Array.isArray(room.pushSubscriptions)) {
+    room.pushSubscriptions.forEach((s) => {
+      if ((endpoint && s.subscription?.endpoint === endpoint) || (character && s.character === character)) {
+        s.muted = !enabled;
+      }
+    });
+  }
+  saveDB(db);
+  res.json({ success: true, enabled: !!enabled });
 });
 
 // Web Push Abonelik Kaydı Endpoint
@@ -852,7 +876,7 @@ io.on('connection', (socket) => {
     if (reward !== undefined) {
       xox.reward = reward;
       saveDB(db);
-      io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+      io.to(room.roomCode).emit('xox_state_updated', xox);
       if (index === undefined && !reset) return;
     }
 
@@ -931,7 +955,7 @@ io.on('connection', (socket) => {
       }
     }
     saveDB(db);
-    io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+    io.to(room.roomCode).emit('xox_state_updated', xox);
   });
 
   socket.on('delete_xox_reward', ({ roomCode, rewardId }) => {
@@ -941,7 +965,7 @@ io.on('connection', (socket) => {
     }
     if (!room.deletedIds.includes(rewardId)) room.deletedIds.push(rewardId);
     saveDB(db);
-    io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+    io.to(room.roomCode).emit('xox_state_updated', room.games.xox);
   });
 
   // Canlı Karşılıklı Hafıza Eşleştirme Oyunu (Çift modunda sırayla, tek modunda serbest)
@@ -956,7 +980,7 @@ io.on('connection', (socket) => {
       mem.scores = { bubu: 0, dudu: 0 };
       mem.winner = null;
       saveDB(db);
-      io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+      io.to(room.roomCode).emit('memory_game_updated', mem);
       return;
     }
 
@@ -979,7 +1003,7 @@ io.on('connection', (socket) => {
       card.flipped = true;
       mem.flippedIndices.push(index);
       saveDB(db);
-      io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+      io.to(room.roomCode).emit('memory_game_updated', mem);
 
       if (mem.flippedIndices.length === 2) {
         const [i1, i2] = mem.flippedIndices;
@@ -1027,9 +1051,9 @@ io.on('connection', (socket) => {
             });
           }
           saveDB(db);
-          io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+          io.to(room.roomCode).emit('memory_game_updated', mem);
         } else {
-          // Eşleşmediyse 900ms sonra kapat ve sırayı karşı tarafa geçir
+          // Eşleşmediyse 850ms sonra kapat ve sırayı karşı tarafa geçir
           setTimeout(() => {
             c1.flipped = false;
             c2.flipped = false;
@@ -1038,8 +1062,8 @@ io.on('connection', (socket) => {
               mem.turn = activeTurn === 'bubu' ? 'dudu' : 'bubu';
             }
             saveDB(db);
-            io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
-          }, 900);
+            io.to(room.roomCode).emit('memory_game_updated', mem);
+          }, 850);
         }
       }
     }

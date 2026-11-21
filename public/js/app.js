@@ -366,6 +366,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('pinLockOverlay').classList.remove('unlocked');
 
   initServiceWorkerAndPush();
+  updateBellNotificationUI();
   initBroadcastChannel();
   initSocketConnection();
   initDirectStageTouch();
@@ -392,11 +393,83 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
+let isNotificationsEnabled = localStorage.getItem(storagePrefix + 'notif_enabled') !== '0';
+
+function updateBellNotificationUI() {
+  const topBell = document.getElementById('topBellBtn');
+  const badge = document.getElementById('pushStatusBadge');
+  const settingsBtn = document.getElementById('btnTogglePushSettings');
+
+  if (topBell) {
+    topBell.textContent = isNotificationsEnabled ? '🔔' : '🔕';
+    topBell.style.opacity = isNotificationsEnabled ? '1' : '0.6';
+  }
+  if (badge) {
+    badge.textContent = isNotificationsEnabled ? 'Açık 🔔' : 'Kapalı 🔕';
+  }
+  if (settingsBtn) {
+    settingsBtn.textContent = isNotificationsEnabled
+      ? '🔔 Bildirimler Açık (Kapatmak İçin Dokun)'
+      : '🔕 Bildirimler Kapalı (Açmak İçin Dokun)';
+    settingsBtn.className = isNotificationsEnabled ? 'primary-btn' : 'secondary-btn';
+  }
+}
+
+async function syncNotificationToggleWithServer(enabled) {
+  try {
+    let endpoint = null;
+    if (swRegistration) {
+      const sub = await swRegistration.pushManager.getSubscription();
+      if (sub) endpoint = sub.endpoint;
+    }
+    await fetch(`/api/room/${currentRoomCode}/push-toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        character: myCharacter,
+        enabled: !!enabled,
+        endpoint
+      })
+    });
+  } catch (e) {}
+}
+
+function toggleNotificationsBell() {
+  isNotificationsEnabled = !isNotificationsEnabled;
+  localStorage.setItem(storagePrefix + 'notif_enabled', isNotificationsEnabled ? '1' : '0');
+  updateBellNotificationUI();
+
+  if (isNotificationsEnabled) {
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission().then((perm) => {
+        if (perm === 'granted') {
+          subscribeDeviceToWebPush(false);
+        }
+      });
+    } else {
+      subscribeDeviceToWebPush(false);
+    }
+    syncNotificationToggleWithServer(true);
+    showIosBanner('🔔💖', 'Bildirimler Açıldı!', 'Artık sevgilinin her dokunuşu, planı ve mesajı sana bildirim olarak gelecek.', true);
+  } else {
+    syncNotificationToggleWithServer(false);
+    showIosBanner('🔕💤', 'Bildirimler Kapatıldı', 'Üstteki 🔕 çan butonuna tekrar basana kadar bildirim almayacaksın.', true);
+  }
+}
+
+async function sendTestNotificationNow() {
+  if (!isNotificationsEnabled) {
+    toggleNotificationsBell();
+  }
+  await subscribeDeviceToWebPush(true);
+  showIosBanner('🧪🔔', 'Test Bildirimi Gönderildi!', 'Arka plan ve canlı bildirim sistemi aktif.', true);
+}
+
 async function initServiceWorkerAndPush() {
   if (!('serviceWorker' in navigator)) return;
   try {
     swRegistration = await navigator.serviceWorker.register('/sw.js');
-    if ('Notification' in window && Notification.permission === 'granted') {
+    if (isNotificationsEnabled && 'Notification' in window && Notification.permission === 'granted') {
       subscribeDeviceToWebPush(false);
     }
   } catch (e) {}
@@ -428,8 +501,8 @@ async function subscribeDeviceToWebPush(sendTest = false) {
       })
     });
 
-    const badge = document.getElementById('pushStatusBadge');
-    if (badge) badge.textContent = '✅ Arka Plan Bildirimi Açık';
+    await syncNotificationToggleWithServer(isNotificationsEnabled);
+    updateBellNotificationUI();
 
     if (sendTest) {
       await fetch(`/api/room/${currentRoomCode}/push-test`, {
@@ -447,18 +520,7 @@ async function subscribeDeviceToWebPush(sendTest = false) {
 }
 
 function enableBackgroundPushNotifications() {
-  if (!('Notification' in window)) {
-    showIosBanner('📱🔔', 'iPhone Ana Ekran Kurulumu Gerekli', 'Uygulama kapalıyken bildirim almak için Safari\'de Paylaş -> Ana Ekrana Ekle yapıp oradan açın!');
-    return;
-  }
-  Notification.requestPermission().then((perm) => {
-    if (perm === 'granted') {
-      subscribeDeviceToWebPush(true);
-      showIosBanner('🔔💖', 'Arka Plan Bildirimleri Aktif!', 'Artık uygulama kapalıyken bile sevgilinin her dokunuşu, planı ve mesajı telefonuna bildirim olarak düşecek!');
-    } else {
-      showIosBanner('🔔⚠️', 'Bildirim İzni Verilmedi', 'Telefon ayarlarından BuDuLove için bildirimlere izin verin.');
-    }
-  });
+  toggleNotificationsBell();
 }
 
 function initBroadcastChannel() {
@@ -521,18 +583,35 @@ function initSocketConnection() {
     });
 
     socket.on('partner_online_alert', ({ character, userName }) => {
-      if (character !== myCharacter) {
+      if (character !== myCharacter && isNotificationsEnabled) {
         showIosBanner('🟢💕', 'Sevgilin Şu An Çevrimiçi!', `${userName || 'Aşkın'} uygulamaya girdi ve şu an çevrimiçi!`);
       }
     });
 
     socket.on('turn_locked_warning', ({ message }) => {
-      showIosBanner('⏳🎮', 'Sıra Sevgilinde!', message);
+      showIosBanner('⏳🎮', 'Sıra Sevgilinde!', message, true);
+    });
+
+    // Hızlı XOX ve Hafıza Oyunu Güncellemesi (Tüm veritabanını göndermeden 0ms anında günceller!)
+    socket.on('xox_state_updated', (xox) => {
+      if (roomState && roomState.games) {
+        roomState.games.xox = xox;
+        saveLocalBackup(roomState);
+        renderXoxBoard();
+      }
+    });
+
+    socket.on('memory_game_updated', (mem) => {
+      if (roomState && roomState.games) {
+        roomState.games.memoryMatch = mem;
+        saveLocalBackup(roomState);
+        renderMultiplayerMemoryGrid();
+      }
     });
 
     // Uygulamaya ne eklenirse eklensin karşı tarafa canlı bildirim göster
     socket.on('activity_notification', (notif) => {
-      if (notif.fromChar && notif.fromChar !== myCharacter) {
+      if (notif.fromChar && notif.fromChar !== myCharacter && isNotificationsEnabled) {
         showIosBanner('🔔💕', notif.title, notif.body);
       }
     });
@@ -549,16 +628,19 @@ function initSocketConnection() {
       animateStageCharacters(entry.type, entry.message);
 
       if (entry.fromChar !== myCharacter) {
-        showIosBanner(
-          entry.type === 'punch' ? '👊💥' : (entry.fromChar === 'bubu' ? '🐼💕' : '🐻💕'),
-          `${entry.fromName} • ${entry.title}`,
-          entry.message
-        );
+        if (isNotificationsEnabled) {
+          showIosBanner(
+            entry.type === 'punch' ? '👊💥' : (entry.fromChar === 'bubu' ? '🐼💕' : '🐻💕'),
+            `${entry.fromName} • ${entry.title}`,
+            entry.message
+          );
+        }
       } else {
         showIosBanner(
           entry.type === 'punch' ? '👊💥' : '✨💌',
           entry.type === 'punch' ? 'Yumruk Gönderildi! (-%8 Enerji)' : 'Sevgiline Bildirim Gönderildi!',
-          `${entry.title} sevgilinin telefonuna iletildi.`
+          `${entry.title} sevgilinin telefonuna iletildi.`,
+          true
         );
       }
     });
@@ -629,7 +711,8 @@ function initSocketConnection() {
 // İOS BİLDİRİM BANNERI & SİSTEM BİLDİRİMİ
 // ============================================================================
 let bannerTimeout = null;
-function showIosBanner(avatarEmoji, title, text) {
+function showIosBanner(avatarEmoji, title, text, forceShow = true) {
+  if (!isNotificationsEnabled && !forceShow) return;
   playCuteSound('notif');
   const banner = document.getElementById('iosNotificationBanner');
   document.getElementById('notifAvatar').textContent = avatarEmoji || '🐼💕';
@@ -1316,6 +1399,51 @@ function startRushGame() {
   loop();
 }
 
+let isBotThinkingXox = false;
+
+function checkLocalXoxWinner(board) {
+  const lines = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+  for (const [a, b, c] of lines) {
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+      return board[a];
+    }
+  }
+  if (board.every((cell) => cell !== null)) return 'draw';
+  return null;
+}
+
+function computeSmartBotXoxMove(board, botChar, humanChar) {
+  const lines = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+  // 1) Bot tek hamlede kazanabiliyorsa kazan
+  for (const [a, b, c] of lines) {
+    const cells = [board[a], board[b], board[c]];
+    if (cells.filter((x) => x === botChar).length === 2 && cells.includes(null)) {
+      return [a, b, c][cells.indexOf(null)];
+    }
+  }
+  // 2) Oyuncu tek hamlede kazanacaksa engelle
+  for (const [a, b, c] of lines) {
+    const cells = [board[a], board[b], board[c]];
+    if (cells.filter((x) => x === humanChar).length === 2 && cells.includes(null)) {
+      return [a, b, c][cells.indexOf(null)];
+    }
+  }
+  // 3) Orta boşsa ortayı al
+  if (board[4] === null) return 4;
+  // 4) Boş hücrelerden rastgele seç
+  const empty = board.map((v, i) => v === null ? i : null).filter((v) => v !== null);
+  if (empty.length === 0) return null;
+  return empty[Math.floor(Math.random() * empty.length)];
+}
+
 function setGamePlayMode(mode) {
   currentGamePlayMode = mode === 'single' ? 'single' : 'couple';
   const btnCouple = document.getElementById('btnModeCouple');
@@ -1324,12 +1452,18 @@ function setGamePlayMode(mode) {
     btnCouple.classList.toggle('active', currentGamePlayMode === 'couple');
     btnSingle.classList.toggle('active', currentGamePlayMode === 'single');
   }
+  // Tek kişilik moda geçildiğinde sıra sende başlasın
+  if (currentGamePlayMode === 'single' && roomState?.games?.xox && !roomState.games.xox.winner) {
+    roomState.games.xox.turn = myCharacter;
+    renderXoxBoard();
+  }
   showIosBanner(
-    currentGamePlayMode === 'couple' ? '👫🎮' : '👤🎮',
-    currentGamePlayMode === 'couple' ? 'Çift Olarak Oyna Modu Aktif!' : 'Tek Olarak Oyna Modu Aktif!',
+    currentGamePlayMode === 'couple' ? '👫🎮' : '👤🤖',
+    currentGamePlayMode === 'couple' ? 'Çift Olarak Oyna Modu Aktif!' : 'Tek Olarak Oyna (Bota Karşı) Aktif!',
     currentGamePlayMode === 'couple'
-      ? 'XOX ve Anı oyunlarında sırayla oynanır! Hakkını kullandıktan sonra sevgilinin hamlesini beklersin.'
-      : 'Beklemeden tek başına (veya bota karşı) oynayabilirsin!'
+      ? 'XOX ve Anı oyunlarında sevgilinle sırayla oynarsınız.'
+      : 'Sen hamleni yaptığın anda karşıdaki Bot otomatik olarak seninle oynar!',
+    true
   );
 }
 
@@ -1392,7 +1526,7 @@ function renderXoxBoard() {
 function makeXoxMove(index) {
   if (!roomState || !roomState.games?.xox) return;
   const xox = roomState.games.xox;
-  if (xox.board[index] || xox.winner) return;
+  if (xox.board[index] || xox.winner || isBotThinkingXox) return;
 
   const currentTurn = xox.turn || 'bubu';
   if (currentGamePlayMode === 'couple' && currentTurn !== myCharacter) {
@@ -1400,12 +1534,25 @@ function makeXoxMove(index) {
     showIosBanner(
       '⏳❌⭕',
       'Sıra Sevgilinde!',
-      `Kendi hakkını kullandın! Şu an sıra sevgilinde (${currentTurn === 'bubu' ? '🐼 Bubu' : '🐻 Dudu'}), o oynayana kadar beklemelisin.`
+      `Kendi hakkını kullandın! Şu an sıra sevgilinde (${currentTurn === 'bubu' ? '🐼 Bubu' : '🐻 Dudu'}), o oynayana kadar beklemelisin.`,
+      true
     );
     return;
   }
 
   playCuteSound('pop');
+
+  // 0ms Anında (Optimistic) Ekran Güncellemesi — Hiç gecikme olmadan anında görünür!
+  const partnerChar = getPartnerCharacter();
+  xox.board[index] = myCharacter;
+  const localWinAfterHuman = checkLocalXoxWinner(xox.board);
+  if (localWinAfterHuman) {
+    xox.winner = localWinAfterHuman;
+  } else {
+    xox.turn = partnerChar;
+  }
+  renderXoxBoard();
+
   if (socket && socket.connected) {
     socket.emit('xox_move', {
       roomCode: currentRoomCode,
@@ -1415,17 +1562,29 @@ function makeXoxMove(index) {
     });
   }
 
-  // Eğer "Tek Olarak Oyna" modundaysa 450ms sonra karşı karakterin (botun) hamlesini otomatik yap
-  if (currentGamePlayMode === 'single') {
+  // Eğer "Tek Olarak Oyna" modundaysa ve oyun bitmediyse karşıdaki Bot otomatik olarak oynar!
+  if (currentGamePlayMode === 'single' && !localWinAfterHuman) {
+    isBotThinkingXox = true;
     setTimeout(() => {
+      isBotThinkingXox = false;
       if (!roomState || !roomState.games?.xox) return;
       const latestXox = roomState.games.xox;
       if (latestXox.winner) return;
+
       const botChar = getPartnerCharacter();
-      if (latestXox.turn !== botChar) return;
-      const emptyIndices = latestXox.board.map((v, i) => v === null ? i : null).filter((v) => v !== null);
-      if (emptyIndices.length === 0) return;
-      const pick = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+      const pick = computeSmartBotXoxMove(latestXox.board, botChar, myCharacter);
+      if (pick === null || latestXox.board[pick] !== null) return;
+
+      playCuteSound('pop');
+      latestXox.board[pick] = botChar;
+      const localWinAfterBot = checkLocalXoxWinner(latestXox.board);
+      if (localWinAfterBot) {
+        latestXox.winner = localWinAfterBot;
+      } else {
+        latestXox.turn = myCharacter;
+      }
+      renderXoxBoard();
+
       if (socket && socket.connected) {
         socket.emit('xox_move', {
           roomCode: currentRoomCode,
@@ -1434,11 +1593,18 @@ function makeXoxMove(index) {
           mode: 'single'
         });
       }
-    }, 450);
+    }, 320);
   }
 }
 
 function resetXoxGame() {
+  isBotThinkingXox = false;
+  if (roomState && roomState.games?.xox) {
+    roomState.games.xox.board = [null, null, null, null, null, null, null, null, null];
+    roomState.games.xox.winner = null;
+    roomState.games.xox.turn = myCharacter;
+    renderXoxBoard();
+  }
   if (socket && socket.connected) {
     socket.emit('xox_move', {
       roomCode: currentRoomCode,
@@ -1520,10 +1686,18 @@ function flipMultiplayerMemoryCard(idx) {
     showIosBanner(
       '⏳🃏',
       'Sıra Sevgilinde!',
-      `Kendi hakkını kullandın! Şu an sıra sevgilinde (${activeTurn === 'bubu' ? '🐼 Bubu' : '🐻 Dudu'}), o kendi hakkını kullanana kadar beklemelisin.`
+      `Kendi hakkını kullandın! Şu an sıra sevgilinde (${activeTurn === 'bubu' ? '🐼 Bubu' : '🐻 Dudu'}), o kendi hakkını kullanana kadar beklemelisin.`,
+      true
     );
     return;
   }
+
+  const card = mem.cards?.[idx];
+  if (!card || card.flipped || card.matched || (mem.flippedIndices && mem.flippedIndices.length >= 2)) return;
+
+  // 0ms Anında (Optimistic) Kart Çevirme
+  card.flipped = true;
+  renderMultiplayerMemoryGrid();
 
   playCuteSound('pop');
   if (socket && socket.connected) {
@@ -2251,12 +2425,28 @@ function deleteSongItem(songId) {
 // ============================================================================
 // NOT YAZMA PANOSU & CANLI MESAJLAŞMA
 // ============================================================================
+function scrollToChatBottom() {
+  const scrollNow = () => {
+    const list = document.getElementById('chatMessagesList');
+    if (list) {
+      list.scrollTop = list.scrollHeight;
+    }
+  };
+  scrollNow();
+  requestAnimationFrame(scrollNow);
+  setTimeout(scrollNow, 60);
+  setTimeout(scrollNow, 180);
+}
+
 function switchCommSubtab(mode) {
   const isChat = mode === 'chat';
   document.getElementById('subBtnChat').classList.toggle('active', isChat);
   document.getElementById('subBtnBoard').classList.toggle('active', !isChat);
   document.getElementById('comm-chat').style.display = isChat ? 'block' : 'none';
   document.getElementById('comm-board').style.display = !isChat ? 'block' : 'none';
+  if (isChat) {
+    scrollToChatBottom();
+  }
 }
 
 function createStickyNote() {
@@ -2462,7 +2652,7 @@ function renderChatMessages() {
       <div class="chat-bubble-row ${isMine ? 'mine' : 'theirs'}">
         <div class="chat-sender-label">${avatar} ${escapeHtml(m.senderName)} • ${formatTimeShort(m.timestamp)}</div>
         <div class="chat-bubble" onclick="reactToChatMessage('${m.id}', '❤️')">
-          ${m.image ? `<img src="${m.image}" class="chat-photo" alt="Sohbet Fotoğrafı" />` : ''}
+          ${m.image ? `<img src="${m.image}" class="chat-photo" alt="Sohbet Fotoğrafı" onload="scrollToChatBottom()" />` : ''}
           <div>${escapeHtml(m.text)}</div>
         </div>
         <div class="chat-reactions-bar">
@@ -2474,7 +2664,7 @@ function renderChatMessages() {
     `;
   }).join('');
 
-  list.scrollTop = list.scrollHeight;
+  scrollToChatBottom();
 }
 
 // ============================================================================
@@ -2657,7 +2847,15 @@ function openMemoryModal() {
   document.getElementById('memTitleInput').value = '';
   document.getElementById('memDescInput').value = '';
   document.getElementById('memLocationInput').value = '';
-  document.getElementById('memPhotoPreview').style.display = 'none';
+  const prev = document.getElementById('memPhotoPreview');
+  if (prev) {
+    prev.src = '';
+    prev.style.display = 'none';
+  }
+  const actionsRow = document.getElementById('memPhotoActionsRow');
+  if (actionsRow) actionsRow.style.display = 'none';
+  const fileInput = document.getElementById('memPhotoInput');
+  if (fileInput) fileInput.value = '';
   pendingMemoryImageBase64 = null;
   document.getElementById('memoryModal').classList.add('open');
 }
@@ -2675,11 +2873,18 @@ function openEditMemoryModal(memoryId) {
   pendingMemoryImageBase64 = mem.image || null;
 
   const prev = document.getElementById('memPhotoPreview');
+  const actionsRow = document.getElementById('memPhotoActionsRow');
+  const fileInput = document.getElementById('memPhotoInput');
+  if (fileInput) fileInput.value = '';
+
   if (mem.image) {
     prev.src = mem.image;
     prev.style.display = 'block';
+    if (actionsRow) actionsRow.style.display = 'flex';
   } else {
+    prev.src = '';
     prev.style.display = 'none';
+    if (actionsRow) actionsRow.style.display = 'none';
   }
   document.getElementById('memoryModal').classList.add('open');
 }
@@ -2690,9 +2895,27 @@ function previewMemoryPhoto(event) {
   compressImageFile(file, 900, 0.84, (base64) => {
     pendingMemoryImageBase64 = base64;
     const prev = document.getElementById('memPhotoPreview');
-    prev.src = base64;
-    prev.style.display = 'block';
+    if (prev) {
+      prev.src = base64;
+      prev.style.display = 'block';
+    }
+    const actionsRow = document.getElementById('memPhotoActionsRow');
+    if (actionsRow) actionsRow.style.display = 'flex';
   });
+}
+
+function removeMemoryPhoto() {
+  pendingMemoryImageBase64 = null;
+  const prev = document.getElementById('memPhotoPreview');
+  if (prev) {
+    prev.src = '';
+    prev.style.display = 'none';
+  }
+  const actionsRow = document.getElementById('memPhotoActionsRow');
+  if (actionsRow) actionsRow.style.display = 'none';
+  const fileInput = document.getElementById('memPhotoInput');
+  if (fileInput) fileInput.value = '';
+  showIosBanner('🗑️📸', 'Fotoğraf Kaldırıldı', 'Yeni bir fotoğraf seçebilir veya anıyı fotoğrafsız kaydedebilirsiniz.');
 }
 
 function saveNewMemory() {
@@ -2946,6 +3169,10 @@ function switchTab(tabId) {
   document.querySelectorAll('.ios-tabbar .tab-btn').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.target === tabId);
   });
+
+  if (tabId === 'tab-notes') {
+    scrollToChatBottom();
+  }
 }
 
 function compressImageFile(file, maxWidth, quality, callback) {

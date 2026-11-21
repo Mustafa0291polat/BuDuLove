@@ -99,7 +99,7 @@
           <span id="myCharText">Bubu</span>
         </button>
         <button class="icon-btn" onclick="cycleQuickTheme()" title="Vişne Çürüğü & Renk Teması Değiştir">🍒</button>
-        <button class="icon-btn" onclick="enableBackgroundPushNotifications()" title="Arka Plan Bildirimlerini Aç">🔔</button>
+        <button id="topBellBtn" class="icon-btn" onclick="toggleNotificationsBell()" title="Bildirimleri Aç / Kapat">🔔</button>
         <button class="icon-btn" onclick="openQrModal()" title="iPhone Kurulum & QR Kod">📱</button>
       </div>
     </header>
@@ -700,15 +700,18 @@
       <section id="tab-settings" class="tab-pane">
         <div class="glass-card">
           <div class="card-header-row">
-            <div class="card-title">🔔 Arka Plan & Kapalıyken Bildirim Sistemi</div>
-            <span id="pushStatusBadge" class="pill-tag pink">Aktif Et</span>
+            <div class="card-title">🔔 Bildirim Kontrolü (Aç / Kapat)</div>
+            <span id="pushStatusBadge" class="pill-tag pink">Açık 🔔</span>
           </div>
           <p style="font-size:12px; color:var(--text-muted); line-height:1.45; margin-bottom:10px;">
-            Uygulama kapalıyken veya telefonun kilit ekranındayken bile her öpücük, yumruk, plan, anı, mesaj ve uyum kartında bildirim almak için aşağıdaki butona dokunup izin verin:
+            Üstteki <strong>🔔 / 🔕 çan butonuna</strong> veya aşağıdaki butona basarak bildirimleri istediğiniz zaman açıp kapatabilirsiniz:
           </p>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="primary-btn" style="flex:1;" onclick="enableBackgroundPushNotifications()">
-              🔔 Arka Plan Bildirimlerini Aç & Test Gönder
+            <button id="btnTogglePushSettings" class="primary-btn" style="flex:1;" onclick="toggleNotificationsBell()">
+              🔔 Bildirimler Açık (Kapatmak İçin Dokun)
+            </button>
+            <button class="secondary-btn" onclick="sendTestNotificationNow()">
+              🧪 Test Gönder
             </button>
           </div>
         </div>
@@ -935,6 +938,14 @@
         <label class="form-label">🖼️ Anı Görseli Seç (iPhone Galeri / Kamera):</label>
         <input id="memPhotoInput" type="file" accept="image/*" class="form-input" onchange="previewMemoryPhoto(event)" />
         <img id="memPhotoPreview" src="" alt="Önizleme" style="display:none; width:100%; height:140px; object-fit:cover; border-radius:12px; margin-top:8px;" />
+        <div id="memPhotoActionsRow" style="display:none; gap:8px; margin-top:8px;">
+          <button type="button" class="secondary-btn" style="flex:1; font-size:11.5px; padding:7px 10px;" onclick="document.getElementById('memPhotoInput').click()">
+            🔄 Fotoğrafı Değiştir
+          </button>
+          <button type="button" class="secondary-btn" style="flex:1; font-size:11.5px; padding:7px 10px; border-color:#C0392B; color:#C0392B;" onclick="removeMemoryPhoto()">
+            🗑️ Fotoğrafı Sil / Kaldır
+          </button>
+        </div>
       </div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
         <div class="form-group">
@@ -1089,6 +1100,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/app.js?v=10"></script>
+  <script src="/js/app.js?v=11"></script>
 </body>
 </html>
