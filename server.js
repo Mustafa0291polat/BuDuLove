@@ -113,17 +113,7 @@ function createInitialMemoryDeck() {
   }));
 }
 
-const GOKHAN_DERDIM_SONG = {
-  id: 'song-gokhan-turkmen-derdim',
-  title: 'Derdim',
-  artist: 'Gökhan Türkmen',
-  audioUrl: '/assets/gokhan-turkmen-derdim.m4a',
-  coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/6e/bb/d2/6ebbd2a5-deb8-36dc-0a06-7b203bf42811/195497276202.jpg/100x100bb.jpg',
-  note: 'Bizim Şarkımız 🎵💕',
-  addedByChar: 'bubu',
-  addedByName: 'Bubu & Dudu',
-  createdAt: '2025-09-22T12:00:00.000Z'
-};
+const LEGACY_REMOVED_SONG_ID = 'song-gokhan-turkmen-derdim';
 
 function getDefaultRoomData(roomCode = 'BUDU-2026') {
   return {
@@ -142,8 +132,8 @@ function getDefaultRoomData(roomCode = 'BUDU-2026') {
     messages: [],
     memories: [],
     events: [],
-    songs: [{ ...GOKHAN_DERDIM_SONG }],
-    deletedIds: [],
+    songs: [],
+    deletedIds: [LEGACY_REMOVED_SONG_ID],
     pushSubscriptions: [],
     games: {
       balloonScores: { bubu: 0, dudu: 0 },
@@ -221,9 +211,12 @@ function ensureRoomStructure(room) {
   if (!Array.isArray(room.events)) room.events = [];
   if (!Array.isArray(room.songs)) room.songs = [];
   if (!Array.isArray(room.deletedIds)) room.deletedIds = [];
-  if (!room.deletedIds.includes(GOKHAN_DERDIM_SONG.id) && !room.songs.some((s) => s.id === GOKHAN_DERDIM_SONG.id)) {
-    room.songs.unshift({ ...GOKHAN_DERDIM_SONG });
+  if (!room.deletedIds.includes(LEGACY_REMOVED_SONG_ID)) {
+    room.deletedIds.push(LEGACY_REMOVED_SONG_ID);
   }
+  room.songs = room.songs.filter(
+    (s) => s && s.id !== LEGACY_REMOVED_SONG_ID && s.audioUrl !== '/assets/gokhan-turkmen-derdim.m4a'
+  );
   if (!Array.isArray(room.pushSubscriptions)) room.pushSubscriptions = [];
   if (!room.games) room.games = def.games;
   if (!room.games.balloonScores) room.games.balloonScores = { bubu: 0, dudu: 0 };
@@ -717,7 +710,9 @@ io.on('connection', (socket) => {
       room.memories = mergeArrayById(room.memories, clientBackup.memories, room.deletedIds);
       room.events = mergeArrayById(room.events, clientBackup.events, room.deletedIds)
         .sort((a, b) => ((a.date || '') + (a.time || '')).localeCompare((b.date || '') + (b.time || '')));
-      room.songs = mergeArrayById(room.songs, clientBackup.songs, room.deletedIds);
+      room.songs = mergeArrayById(room.songs, clientBackup.songs, room.deletedIds).filter(
+        (s) => s && s.id !== LEGACY_REMOVED_SONG_ID && s.audioUrl !== '/assets/gokhan-turkmen-derdim.m4a'
+      );
       if (clientBackup.games?.xox?.rewardHistory) {
         room.games.xox.rewardHistory = mergeArrayById(
           room.games.xox.rewardHistory,

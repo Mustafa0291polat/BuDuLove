@@ -165,7 +165,15 @@ function saveLocalBackup(state) {
 function loadLocalBackup() {
   try {
     const raw = localStorage.getItem(getBackupKey());
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.songs)) {
+        parsed.songs = parsed.songs.filter(
+          (s) => s && s.id !== 'song-gokhan-turkmen-derdim' && s.audioUrl !== '/assets/gokhan-turkmen-derdim.m4a'
+        );
+      }
+      return parsed;
+    }
   } catch (e) {}
   return null;
 }
@@ -2096,14 +2104,18 @@ function initAudioPlayerListeners() {
 
   audio.addEventListener('play', () => {
     isAudioPlaying = true;
-    document.getElementById('btnPlayPauseMain').textContent = '⏸';
-    document.getElementById('nowPlayingCover').classList.add('playing');
+    const btn = document.getElementById('btnPlayPauseMain');
+    if (btn) btn.textContent = '⏸';
+    const cov = document.getElementById('nowPlayingCover');
+    if (cov) cov.classList.add('playing');
   });
 
   audio.addEventListener('pause', () => {
     isAudioPlaying = false;
-    document.getElementById('btnPlayPauseMain').textContent = '▶';
-    document.getElementById('nowPlayingCover').classList.remove('playing');
+    const btn = document.getElementById('btnPlayPauseMain');
+    if (btn) btn.textContent = '▶';
+    const cov = document.getElementById('nowPlayingCover');
+    if (cov) cov.classList.remove('playing');
   });
 
   audio.addEventListener('ended', () => {
@@ -2266,10 +2278,25 @@ async function saveManualSong() {
 function renderSavedSongsList() {
   const container = document.getElementById('savedSongsList');
   if (!container || !roomState) return;
+  if (Array.isArray(roomState.songs)) {
+    roomState.songs = roomState.songs.filter(
+      (s) => s && s.id !== 'song-gokhan-turkmen-derdim' && s.audioUrl !== '/assets/gokhan-turkmen-derdim.m4a'
+    );
+  }
   const songs = roomState.songs || [];
   document.getElementById('songsCountBadge').textContent = `${songs.length} Şarkı`;
 
   if (songs.length === 0) {
+    const embedWrap = document.getElementById('embeddedMediaPlayerWrap');
+    if (embedWrap) {
+      embedWrap.style.display = 'none';
+      embedWrap.innerHTML = '';
+    }
+    const audio = document.getElementById('mainAudioElement');
+    if (audio) {
+      audio.pause();
+      audio.style.display = 'none';
+    }
     container.innerHTML = `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:14px;">Henüz "Bizim Şarkılarımız" listesine şarkı eklenmedi. Yukarıdan şarkı arayıp veya link/MP3 ekleyip ilk şarkınızı ekleyin! 🎵</div>`;
     return;
   }
@@ -2282,7 +2309,7 @@ function renderSavedSongsList() {
         <div class="feed-desc">${escapeHtml(s.artist)} • ${s.addedByChar === 'bubu' ? '🐼' : '🐻'} ${escapeHtml(s.addedByName)}</div>
         ${s.note ? `<div class="feed-desc" style="color:var(--pink-main); font-weight:700;">"${escapeHtml(s.note)}"</div>` : ''}
       </div>
-      <button class="primary-btn" style="padding:7px 11px; font-size:11.5px;" onclick="playSongByIndex(${idx})">▶ Çal</button>
+      <button class="primary-btn" style="padding:7px 11px; font-size:11.5px;" onclick="playSongByIndex(${idx})">▶ Aç / Çal</button>
       <button class="delete-mini-btn" onclick="deleteSongItem('${s.id}')">🗑️</button>
     </div>
   `).join('');
@@ -2294,9 +2321,12 @@ async function playSongByIndex(idx) {
   currentSongIndex = idx;
   const song = songs[idx];
 
-  document.getElementById('nowPlayingTitle').textContent = song.title;
-  document.getElementById('nowPlayingArtist').textContent = `${song.artist} (${song.addedByName} ekledi)`;
-  document.getElementById('nowPlayingCover').src = song.coverUrl || '/assets/budu-icon.png';
+  const titleEl = document.getElementById('nowPlayingTitle');
+  if (titleEl) titleEl.textContent = song.title;
+  const artistEl = document.getElementById('nowPlayingArtist');
+  if (artistEl) artistEl.textContent = `${song.artist} (${song.addedByName} ekledi)`;
+  const coverEl = document.getElementById('nowPlayingCover');
+  if (coverEl) coverEl.src = song.coverUrl || '/assets/budu-icon.png';
 
   const audio = document.getElementById('mainAudioElement');
   const embedWrap = document.getElementById('embeddedMediaPlayerWrap');
@@ -2304,8 +2334,10 @@ async function playSongByIndex(idx) {
   const spId = song.spotifyId || extractSpotifyIdClient(song.audioUrl);
 
   if (ytId && embedWrap) {
-    // YouTube şarkısını gömülü oynatıcıda aç ve aynı zamanda ses akışı varsa hazır tut
-    audio.pause();
+    if (audio) {
+      audio.pause();
+      audio.style.display = 'none';
+    }
     embedWrap.style.display = 'block';
     embedWrap.innerHTML = `
       <iframe
@@ -2319,9 +2351,12 @@ async function playSongByIndex(idx) {
         style="display:block;"
       ></iframe>
     `;
-    document.getElementById('nowPlayingCover').classList.add('playing');
+    if (coverEl) coverEl.classList.add('playing');
   } else if (spId && embedWrap) {
-    audio.pause();
+    if (audio) {
+      audio.pause();
+      audio.style.display = 'none';
+    }
     embedWrap.style.display = 'block';
     embedWrap.innerHTML = `
       <iframe
@@ -2334,17 +2369,23 @@ async function playSongByIndex(idx) {
         style="display:block;"
       ></iframe>
     `;
-    document.getElementById('nowPlayingCover').classList.add('playing');
+    if (coverEl) coverEl.classList.add('playing');
   } else {
     if (embedWrap) {
       embedWrap.style.display = 'none';
       embedWrap.innerHTML = '';
     }
+    if (audio) {
+      audio.controls = true;
+      audio.style.display = 'block';
+      audio.style.width = '100%';
+      audio.style.height = '36px';
+      audio.style.marginBottom = '10px';
+    }
     const streamToPlay = song.audioUrl || song.fallbackStreamUrl || '';
-    if (streamToPlay) {
+    if (streamToPlay && audio) {
       audio.src = streamToPlay;
       audio.onerror = async () => {
-        // Eğer girilen link doğrudan MP3 değilse otomatik olarak şarkı adından ses akışını bulup çal!
         if (song.fallbackStreamUrl && audio.src !== song.fallbackStreamUrl) {
           audio.src = song.fallbackStreamUrl;
           audio.play().catch(() => {});
@@ -2362,8 +2403,7 @@ async function playSongByIndex(idx) {
         } catch (e) {}
       };
       audio.play().catch(() => {});
-    } else {
-      // Sadece şarkı adı yazıldıysa otomatik arayıp çal
+    } else if (audio) {
       try {
         const q = `${song.title} ${song.artist !== 'Bizim Şarkımız' ? song.artist : ''}`.trim();
         const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=music&entity=song&country=TR&limit=1`);

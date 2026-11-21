@@ -499,30 +499,9 @@
       <section id="tab-music" class="tab-pane">
         <div class="glass-card">
           <div class="card-header-row">
-            <div class="card-title">🎵 Bizim Şarkılarımız • Müzik Çalar</div>
+            <div class="card-title">🎵 Bizim Şarkılarımız • Şarkı Ekle</div>
             <span id="songsCountBadge" class="pill-tag pink">0 Şarkı</span>
           </div>
-
-          <!-- Aktif Çalan Şarkı Plak Kartı -->
-          <div class="music-player-hero">
-            <img id="nowPlayingCover" src="/assets/budu-icon.png" alt="Plak" class="vinyl-disc" />
-            <div style="flex:1; min-width:0;">
-              <div id="nowPlayingTitle" style="font-size:14.5px; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                Şarkı Seçin veya Ekleyin 🎶
-              </div>
-              <div id="nowPlayingArtist" style="font-size:12px; opacity:0.88; margin-top:2px;">
-                Bizim Şarkılarımız Listesi
-              </div>
-              <div class="music-controls-row">
-                <button class="music-ctrl-btn" onclick="playPrevSong()" title="Önceki Şarkı">⏮</button>
-                <button id="btnPlayPauseMain" class="music-ctrl-btn play-main" onclick="togglePlayCurrentSong()">▶</button>
-                <button class="music-ctrl-btn" onclick="playNextSong()" title="Sonraki Şarkı">⏭</button>
-              </div>
-            </div>
-          </div>
-          <audio id="mainAudioElement" preload="none" style="width:100%; height:32px; margin-bottom:10px;" controls></audio>
-          <!-- YouTube veya Spotify Linkleri İçin Gömülü Oynatıcı Alanı -->
-          <div id="embeddedMediaPlayerWrap" style="display:none; margin-bottom:12px; border-radius:16px; overflow:hidden; border:2px solid var(--pink-main);"></div>
 
           <!-- Şarkı Arama & Ekleme Alanı -->
           <div class="form-group">
@@ -549,6 +528,9 @@
             <div class="card-title">📀 Kayıtlı Şarkı Listemiz</div>
             <span class="pill-tag khaki">Kalıcı Liste</span>
           </div>
+          <!-- Seçilen Şarkının Açıldığı Gömülü Oynatıcı Alanı (YouTube / Spotify / Ses) -->
+          <div id="embeddedMediaPlayerWrap" style="display:none; margin-bottom:12px; border-radius:16px; overflow:hidden; border:2px solid var(--pink-main);"></div>
+          <audio id="mainAudioElement" preload="none" style="display:none;"></audio>
           <div id="savedSongsList" class="affection-feed" style="max-height:none;"></div>
         </div>
       </section>
@@ -1100,6 +1082,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/app.js?v=11"></script>
+  <script src="/js/app.js?v=12"></script>
 </body>
 </html>
