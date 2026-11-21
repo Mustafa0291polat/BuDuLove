@@ -85,8 +85,10 @@
         <div class="brand-titles">
           <h1>BuDuLove</h1>
           <div class="brand-subtitle">
-            <span class="live-dot"></span>
-            <span id="roomCodeBadge">Oda: BUDU-2026</span>
+            <span id="partnerOnlineDot" class="live-dot" style="background:#9E9E9E; box-shadow:none;"></span>
+            <span id="partnerOnlineText">Sevgilin çevrimdışı</span>
+            <span style="opacity:0.4;">•</span>
+            <span id="roomCodeBadge">BUDU-2026</span>
           </div>
         </div>
       </div>
@@ -258,9 +260,19 @@
       </section>
 
       <!-- =========================================================
-           SEKME 2: ÇİFT OYUNLARI (BALON, SNAP ÖPÜCÜK, XOX, CANLI HAFIZA&UYUM, DART)
+           SEKME 2: ÇİFT OYUNLARI (TEK VEYA ÇİFT MODU + 5 OYUN)
            ========================================================= -->
       <section id="tab-games" class="tab-pane">
+        <!-- Çift Olarak Oyna / Tek Olarak Oyna Mod Seçici -->
+        <div class="subtab-switch" style="margin-bottom:10px;">
+          <button id="btnModeCouple" class="subtab-btn active" onclick="setGamePlayMode('couple')">
+            👫 Çift Olarak Oyna (Sırayla)
+          </button>
+          <button id="btnModeSingle" class="subtab-btn" onclick="setGamePlayMode('single')">
+            👤 Tek Olarak Oyna
+          </button>
+        </div>
+
         <div class="game-tabs-row">
           <button class="game-selector-btn active" onclick="selectGame('balloon', this)">
             <span style="font-size:18px;">🎈</span>
@@ -352,7 +364,7 @@
         <div id="game-xox" class="game-panel">
           <div class="glass-card">
             <div class="card-header-row">
-              <div class="card-title">❌⭕ Bubu vs Dudu Karşılıklı XOX</div>
+              <div class="card-title">❌⭕ Bubu vs Dudu Aşk XOX</div>
               <span id="xoxTurnBadge" class="pill-tag">Sıra: 🐼 Bubu</span>
             </div>
             <div class="scoreboard-row">
@@ -367,21 +379,33 @@
             </div>
 
             <div class="form-group" style="margin-bottom:8px;">
-              <label class="form-label">🎁 Kazananın Alacağı Gerçek Ödül:</label>
-              <select id="xoxRewardSelect" class="form-select" onchange="changeXoxReward(this.value)">
-                <option value="100 Öpücük & Kahve Ismarlama 🧋">100 Öpücük & Kahve Ismarlama 🧋</option>
-                <option value="15 Dakika Omuz Masajı 💆‍♀️">15 Dakika Omuz Masajı 💆‍♀️</option>
-                <option value="Bu Akşamki Filmi Seçme Hakkı 🎬">Bu Akşamki Filmi Seçme Hakkı 🎬</option>
-                <option value="Tatlı & Çikolata Ismarlama 🍰">Tatlı & Çikolata Ismarlama 🍰</option>
-              </select>
+              <label class="form-label">🎁 Kazananın Alacağı Ödül:</label>
+              <div style="display:flex; gap:6px;">
+                <input
+                  id="xoxCustomRewardInput"
+                  type="text"
+                  class="form-input"
+                  placeholder="İstediğiniz ödülü buraya yazın..."
+                  onkeydown="if(event.key==='Enter') saveCustomXoxReward()"
+                />
+                <button class="secondary-btn" onclick="saveCustomXoxReward()">Kaydet</button>
+              </div>
             </div>
 
             <div id="xoxBoard" class="xox-board"></div>
 
             <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:10px;">
-              <button class="secondary-btn" onclick="resetXoxGame()">🔄 Yeni Tur Başlat</button>
-              <button class="primary-btn" onclick="playXoxBotMove()">🤖 Bot Hamlesi Yap</button>
+              <button class="secondary-btn" style="width:100%;" onclick="resetXoxGame()">🔄 Yeni Tur Başlat</button>
             </div>
+          </div>
+
+          <!-- KAZANILAN ÖDÜLLER & KAZANANLAR KAYIT LİSTESİ -->
+          <div class="glass-card">
+            <div class="card-header-row">
+              <div class="card-title">🏆 Kazanılan Ödüller & Kazananlar</div>
+              <span id="xoxRewardHistoryCount" class="pill-tag khaki">0 Kayıt</span>
+            </div>
+            <div id="xoxRewardHistoryList" class="affection-feed" style="max-height:none;"></div>
           </div>
         </div>
 
@@ -497,6 +521,8 @@
             </div>
           </div>
           <audio id="mainAudioElement" preload="none" style="width:100%; height:32px; margin-bottom:10px;" controls></audio>
+          <!-- YouTube veya Spotify Linkleri İçin Gömülü Oynatıcı Alanı -->
+          <div id="embeddedMediaPlayerWrap" style="display:none; margin-bottom:12px; border-radius:16px; overflow:hidden; border:2px solid var(--pink-main);"></div>
 
           <!-- Şarkı Arama & Ekleme Alanı -->
           <div class="form-group">
@@ -512,7 +538,7 @@
           <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
             <label class="secondary-btn" style="flex:1; text-align:center; cursor:pointer;">
               📁 Telefondan MP3 / Ses Yükle
-              <input type="file" accept="audio/*" style="display:none;" onchange="uploadCustomAudioFile(event)" />
+              <input type="file" accept="audio/*,video/mp4,.mp3,.m4a,.wav,.aac,.ogg" style="display:none;" onchange="uploadCustomAudioFile(event)" />
             </label>
             <button class="secondary-btn" onclick="openManualSongModal()">🔗 Şarkı Linki ile Ekle</button>
           </div>
@@ -860,31 +886,31 @@
   </div>
 
   <!-- =========================================================
-       MODAL: MANUEL ŞARKI LİNKİ EKLEME ("BİZİM ŞARKILARIMIZ")
+       MODAL: MANUEL ŞARKI LİNKİ EKLEME (YOUTUBE, SPOTIFY VEYA MP3)
        ========================================================= -->
   <div id="manualSongModal" class="modal-backdrop">
     <div class="modal-card">
       <div class="card-header-row">
-        <div class="card-title">🎵 Bizim Şarkılarımıza Şarkı Ekle</div>
+        <div class="card-title">🎵 Şarkı Linki ile Ekle (YouTube / Spotify / MP3)</div>
         <button class="delete-mini-btn" onclick="closeModal('manualSongModal')">✕</button>
       </div>
       <div class="form-group">
-        <label class="form-label">🎶 Şarkı Adı:</label>
-        <input id="songTitleInput" type="text" class="form-input" placeholder="Örn: Bizim Şarkımız" />
+        <label class="form-label">🔗 YouTube, Spotify veya MP3 Linki:</label>
+        <input id="songUrlInput" type="text" class="form-input" placeholder="Örn: https://youtu.be/... veya https://open.spotify.com/..." />
+      </div>
+      <div class="form-group">
+        <label class="form-label">🎶 Şarkı Adı (Boş bırakırsanız linkten otomatik bulur):</label>
+        <input id="songTitleInput" type="text" class="form-input" placeholder="Örn: Derdim" />
       </div>
       <div class="form-group">
         <label class="form-label">🎤 Sanatçı:</label>
-        <input id="songArtistInput" type="text" class="form-input" placeholder="Örn: Sezen Aksu" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">🔗 MP3 / Ses Bağlantısı (URL):</label>
-        <input id="songUrlInput" type="text" class="form-input" placeholder="https://..." />
+        <input id="songArtistInput" type="text" class="form-input" placeholder="Örn: Gökhan Türkmen" />
       </div>
       <div class="form-group">
         <label class="form-label">💌 Şarkı Notumuz:</label>
         <input id="songNoteInput" type="text" class="form-input" placeholder="Örn: Bu şarkı her çaldığında aklımdasın..." />
       </div>
-      <button class="primary-btn" style="width:100%;" onclick="saveManualSong()">🎵 Listeye Kaydet & Bildirim Gönder</button>
+      <button class="primary-btn" style="width:100%;" onclick="saveManualSong()">🎵 Listeye Kaydet & Hemen Çal</button>
     </div>
   </div>
 
@@ -1063,6 +1089,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/app.js?v=9"></script>
+  <script src="/js/app.js?v=10"></script>
 </body>
 </html>

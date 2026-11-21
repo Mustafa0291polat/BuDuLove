@@ -158,7 +158,8 @@ function getDefaultRoomData(roomCode = 'BUDU-2026') {
         board: [null, null, null, null, null, null, null, null, null],
         turn: 'bubu',
         winner: null,
-        reward: '100 Öpücük & Kahve Ismarlama 🧋',
+        reward: '',
+        rewardHistory: [],
         scores: { bubu: 0, dudu: 0 }
       },
       memoryMatch: {
@@ -230,6 +231,8 @@ function ensureRoomStructure(room) {
   if (!room.games.dartScores) room.games.dartScores = { bubu: 0, dudu: 0 };
   if (!room.games.dartTarget) room.games.dartTarget = def.games.dartTarget;
   if (!room.games.xox) room.games.xox = def.games.xox;
+  if (!Array.isArray(room.games.xox.rewardHistory)) room.games.xox.rewardHistory = [];
+  if (room.games.xox.reward === '100 Öpücük & Kahve Ismarlama 🧋') room.games.xox.reward = '';
   if (!room.games.memoryMatch || !Array.isArray(room.games.memoryMatch.cards)) {
     room.games.memoryMatch = def.games.memoryMatch;
   }
@@ -501,6 +504,98 @@ app.post('/api/room/:code/theme', (req, res) => {
   res.json({ success: true, theme: room.coupleInfo.theme });
 });
 
+// YouTube / Spotify / MP3 Link Çözücü ve Şarkı Yükleme Endpointi
+function extractYouTubeId(url) {
+  if (!url) return null;
+  const m = String(url).match(/(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function extractSpotifyTrackId(url) {
+  if (!url) return null;
+  const m = String(url).match(/spotify\.com\/(?:intl-[a-z]+\/)?track\/([a-zA-Z0-9]+)/);
+  return m ? m[1] : null;
+}
+
+app.post('/api/room/:code/song', async (req, res) => {
+  try {
+    const room = getRoom(req.params.code);
+    const song = req.body.song || {};
+    let title = (song.title || '').trim();
+    let artist = (song.artist || '').trim();
+    let audioUrl = (song.audioUrl || '').trim();
+    let coverUrl = song.coverUrl || '/assets/budu-icon.png';
+    let youtubeId = song.youtubeId || extractYouTubeId(audioUrl);
+    let spotifyId = song.spotifyId || extractSpotifyTrackId(audioUrl);
+
+    // Eğer YouTube linki yapıştırıldıysa noembed ile başlık ve kapak çek
+    if (youtubeId && (!title || title === 'Bizim Şarkımız 🎵')) {
+      try {
+        const oeRes = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${youtubeId}`);
+        const oeData = await oeRes.json();
+        if (oeData && oeData.title) {
+          title = oeData.title;
+          artist = oeData.author_name || artist || 'YouTube Müzik';
+          coverUrl = oeData.thumbnail_url || coverUrl;
+        }
+      } catch (e) {}
+    }
+
+    // Eğer doğrudan ses dosyası (.mp3/.m4a/data:) değilse veya YouTube/Spotify linkiyse, arka planda iTunes üzerinden doğrudan çalınabilir ses akışını da bul
+    const isDirectAudio = audioUrl.startsWith('data:audio/') || audioUrl.startsWith('/assets/') || /\.(mp3|m4a|wav|aac|ogg)(\?.*)?$/i.test(audioUrl);
+    if (!isDirectAudio && (title || artist)) {
+      try {
+        const cleanQuery = `${title} ${artist !== 'Bizim Şarkımız' && artist !== 'YouTube Müzik' ? artist : ''}`.replace(/\(.*?\)|\[.*?\]|official|video|lyrics|klip/gi, '').trim();
+        if (cleanQuery) {
+          const itRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(cleanQuery)}&media=music&entity=song&country=TR&limit=1`);
+          const itData = await itRes.json();
+          if (itData && itData.results && itData.results[0]) {
+            const track = itData.results[0];
+            if (track.previewUrl) {
+              song.fallbackStreamUrl = track.previewUrl;
+              if (!youtubeId && !spotifyId) {
+                audioUrl = track.previewUrl;
+              }
+            }
+            if (coverUrl === '/assets/budu-icon.png' && track.artworkUrl100) {
+              coverUrl = track.artworkUrl100;
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    const newSong = {
+      id: song.id || ('song-' + Date.now()),
+      title: title || 'Bizim Şarkımız 🎵',
+      artist: artist || 'Bubu & Dudu',
+      audioUrl,
+      fallbackStreamUrl: song.fallbackStreamUrl || null,
+      youtubeId: youtubeId || null,
+      spotifyId: spotifyId || null,
+      coverUrl,
+      note: song.note || '',
+      addedByChar: song.addedByChar || 'bubu',
+      addedByName: song.addedByName || 'Bubu',
+      createdAt: new Date().toISOString()
+    };
+
+    room.songs.unshift(newSong);
+    saveDB(db);
+    io.to(room.roomCode).emit('song_added', { song: newSong, room: sanitizeRoomForClient(room) });
+
+    sendPushToRoom(room, {
+      title: `🎵 ${newSong.addedByName} "Bizim Şarkılarımız"a Şarkı Ekledi!`,
+      body: `${newSong.title} - ${newSong.artist}`,
+      fromChar: newSong.addedByChar
+    });
+
+    res.json({ success: true, song: newSong });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // İstemci Cihaz Yedeğini Sunucu Veritabanıyla Birleştirme (Hiçbir Veri Silinmesin!)
 function mergeArrayById(serverArr, clientArr, deletedIds = []) {
   const delSet = new Set(deletedIds);
@@ -514,6 +609,55 @@ function mergeArrayById(serverArr, clientArr, deletedIds = []) {
     }
   });
   return Array.from(map.values());
+}
+
+// ============================================================================
+// ÇEVRİMİÇİ (ONLINE PRESENCE) TAKİP SİSTEMİ
+// ============================================================================
+const onlineSocketsByRoom = new Map(); // roomCode -> Map<socketId, { character, userName }>
+
+function getRoomPresence(roomCode) {
+  const code = (roomCode || 'BUDU-2026').trim().toUpperCase();
+  const map = onlineSocketsByRoom.get(code);
+  const status = { bubu: false, dudu: false };
+  if (map) {
+    for (const info of map.values()) {
+      if (info.character === 'bubu') status.bubu = true;
+      if (info.character === 'dudu') status.dudu = true;
+    }
+  }
+  return status;
+}
+
+function registerSocketPresence(socket, roomCode, character, userName) {
+  const code = (roomCode || 'BUDU-2026').trim().toUpperCase();
+  if (!onlineSocketsByRoom.has(code)) {
+    onlineSocketsByRoom.set(code, new Map());
+  }
+  const roomMap = onlineSocketsByRoom.get(code);
+  const before = getRoomPresence(code);
+  roomMap.set(socket.id, { character: character || 'bubu', userName: userName || 'Bubu' });
+  const after = getRoomPresence(code);
+
+  io.to(code).emit('presence_state', after);
+
+  // Eğer bu karakter yeni çevrimiçi olduysa karşı tarafa canlı bildirim gönder
+  if (character && !before[character] && after[character]) {
+    socket.to(code).emit('partner_online_alert', {
+      character,
+      userName: userName || (character === 'bubu' ? 'Bubu' : 'Dudu'),
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+
+function removeSocketPresence(socket, roomCode) {
+  const code = (roomCode || 'BUDU-2026').trim().toUpperCase();
+  const roomMap = onlineSocketsByRoom.get(code);
+  if (roomMap && roomMap.has(socket.id)) {
+    roomMap.delete(socket.id);
+    io.to(code).emit('presence_state', getRoomPresence(code));
+  }
 }
 
 // ============================================================================
@@ -550,6 +694,13 @@ io.on('connection', (socket) => {
       room.events = mergeArrayById(room.events, clientBackup.events, room.deletedIds)
         .sort((a, b) => ((a.date || '') + (a.time || '')).localeCompare((b.date || '') + (b.time || '')));
       room.songs = mergeArrayById(room.songs, clientBackup.songs, room.deletedIds);
+      if (clientBackup.games?.xox?.rewardHistory) {
+        room.games.xox.rewardHistory = mergeArrayById(
+          room.games.xox.rewardHistory,
+          clientBackup.games.xox.rewardHistory,
+          room.deletedIds
+        );
+      }
       if (clientBackup.coupleInfo && clientBackup.coupleInfo.theme) {
         room.coupleInfo.theme = clientBackup.coupleInfo.theme;
       }
@@ -562,7 +713,16 @@ io.on('connection', (socket) => {
     }
     saveDB(db);
 
+    registerSocketPresence(socket, currentRoomCode, character, userName);
     socket.emit('room_state', sanitizeRoomForClient(room));
+  });
+
+  socket.on('update_presence_character', ({ roomCode, character, userName }) => {
+    registerSocketPresence(socket, roomCode || currentRoomCode, character, userName);
+  });
+
+  socket.on('disconnect', () => {
+    removeSocketPresence(socket, currentRoomCode);
   });
 
   socket.on('update_couple_info', ({ roomCode, coupleInfo, fromChar }) => {
@@ -683,19 +843,37 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Canlı Karşılıklı XOX
-  socket.on('xox_move', ({ roomCode, index, character, reset, reward }) => {
+  // Canlı Karşılıklı veya Tek Kişilik XOX
+  socket.on('xox_move', ({ roomCode, index, character, reset, reward, mode }) => {
     const room = getRoom(roomCode || currentRoomCode);
     const xox = room.games.xox;
-    if (reward) {
+    if (!Array.isArray(xox.rewardHistory)) xox.rewardHistory = [];
+
+    if (reward !== undefined) {
       xox.reward = reward;
+      saveDB(db);
+      io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+      if (index === undefined && !reset) return;
     }
+
     if (reset) {
       xox.board = [null, null, null, null, null, null, null, null, null];
       xox.winner = null;
       xox.turn = character || 'bubu';
     } else if (typeof index === 'number' && !xox.board[index] && !xox.winner) {
-      xox.board[index] = character;
+      const currentTurn = xox.turn || 'bubu';
+      // Çift olarak oynanıyorsa sadece sırası olan karakter hamle yapabilir!
+      if (mode !== 'single' && character !== currentTurn) {
+        socket.emit('turn_locked_warning', {
+          game: 'xox',
+          turn: currentTurn,
+          message: `⏳ Şu an sıra sevgilinde (${currentTurn === 'bubu' ? '🐼 Bubu' : '🐻 Dudu'})! O hamlesini yapana kadar beklemelisin.`
+        });
+        return;
+      }
+
+      const moveChar = mode === 'single' ? character : currentTurn;
+      xox.board[index] = moveChar;
       const lines = [
         [0,1,2],[3,4,5],[6,7,8],
         [0,3,6],[1,4,7],[2,5,8],
@@ -712,20 +890,30 @@ io.on('connection', (socket) => {
         xox.winner = foundWinner;
         xox.scores[foundWinner] = (xox.scores[foundWinner] || 0) + 1;
         const winnerName = foundWinner === 'bubu' ? room.coupleInfo.bubuName : room.coupleInfo.duduName;
+        const activeRewardText = (xox.reward && xox.reward.trim()) ? xox.reward.trim() : 'Özel XOX Ödülü 🎁';
 
-        // Her iki telefonda da büyük "Tebrikler Kazandı" kartını aç!
+        // Kazanılan ödülü ve kimin kazandığını kalıcı geçmişe kaydet!
+        xox.rewardHistory.unshift({
+          id: 'xoxrew-' + Date.now(),
+          winnerChar: foundWinner,
+          winnerName,
+          reward: activeRewardText,
+          date: formatDate(new Date()),
+          timestamp: new Date().toISOString()
+        });
+
         io.to(room.roomCode).emit('game_winner_card', {
           gameTitle: 'Aşk XOX Oyunu ❌⭕',
           winnerChar: foundWinner,
           winnerName,
           score: xox.scores[foundWinner],
           subtitle: `Tebrikler ${winnerName} Kazandı! 🎉`,
-          reward: xox.reward || '100 Öpücük & Kahve Ismarlama 🧋'
+          reward: activeRewardText
         });
 
         sendPushToRoom(room, {
           title: `🏆 Tebrikler! XOX Oyununu ${winnerName} Kazandı!`,
-          body: `Kazanılan Ödül: ${xox.reward || '100 Öpücük'} 🎁`,
+          body: `Kazanılan Ödül: ${activeRewardText} 🎁`,
           fromChar: character
         });
       } else if (xox.board.every((cell) => cell !== null)) {
@@ -736,18 +924,28 @@ io.on('connection', (socket) => {
           winnerName: 'Dostluk & Aşk',
           score: 0,
           subtitle: 'Berabere Bitti! İkiniz de Kazandınız 🤝💕',
-          reward: xox.reward || 'Birlikte Tatlı Keyfi'
+          reward: (xox.reward && xox.reward.trim()) || 'Birlikte Tatlı Keyfi'
         });
       } else {
-        xox.turn = character === 'bubu' ? 'dudu' : 'bubu';
+        xox.turn = moveChar === 'bubu' ? 'dudu' : 'bubu';
       }
     }
     saveDB(db);
-    io.to(room.roomCode).emit('room_state', room);
+    io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
   });
 
-  // Canlı Karşılıklı Hafıza Eşleştirme Oyunu (XOX gibi sırayla oynanır!)
-  socket.on('memory_game_action', ({ roomCode, action, index, character }) => {
+  socket.on('delete_xox_reward', ({ roomCode, rewardId }) => {
+    const room = getRoom(roomCode || currentRoomCode);
+    if (room.games?.xox?.rewardHistory) {
+      room.games.xox.rewardHistory = room.games.xox.rewardHistory.filter((r) => r.id !== rewardId);
+    }
+    if (!room.deletedIds.includes(rewardId)) room.deletedIds.push(rewardId);
+    saveDB(db);
+    io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+  });
+
+  // Canlı Karşılıklı Hafıza Eşleştirme Oyunu (Çift modunda sırayla, tek modunda serbest)
+  socket.on('memory_game_action', ({ roomCode, action, index, character, mode }) => {
     const room = getRoom(roomCode || currentRoomCode);
     const mem = room.games.memoryMatch;
 
@@ -758,19 +956,30 @@ io.on('connection', (socket) => {
       mem.scores = { bubu: 0, dudu: 0 };
       mem.winner = null;
       saveDB(db);
-      io.to(room.roomCode).emit('room_state', room);
+      io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
       return;
     }
 
     if (action === 'flip' && typeof index === 'number') {
+      const activeTurn = mem.turn || 'bubu';
+      // Çift olarak oynanıyorsa sadece sırası olan kişi tıklayabilir!
+      if (mode !== 'single' && character !== activeTurn) {
+        socket.emit('turn_locked_warning', {
+          game: 'memory',
+          turn: activeTurn,
+          message: `⏳ Şu an sıra sevgilinde (${activeTurn === 'bubu' ? '🐼 Bubu' : '🐻 Dudu'})! O hakkını kullanana kadar beklemelisin.`
+        });
+        return;
+      }
+
       const card = mem.cards[index];
       if (!card || card.flipped || card.matched || mem.flippedIndices.length >= 2) return;
 
-      const activeTurn = mem.turn || character || 'bubu';
+      const playerChar = mode === 'single' ? (character || 'bubu') : activeTurn;
       card.flipped = true;
       mem.flippedIndices.push(index);
       saveDB(db);
-      io.to(room.roomCode).emit('room_state', room);
+      io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
 
       if (mem.flippedIndices.length === 2) {
         const [i1, i2] = mem.flippedIndices;
@@ -781,9 +990,13 @@ io.on('connection', (socket) => {
           c1.matched = true;
           c2.matched = true;
           mem.flippedIndices = [];
-          mem.scores[activeTurn] = (mem.scores[activeTurn] || 0) + 1;
+          mem.scores[playerChar] = (mem.scores[playerChar] || 0) + 1;
 
-          // Tüm kartlar eşleşti mi kontrol et
+          // Çift modunda hakkını kullandıktan sonra sıra karşı tarafa geçer!
+          if (mode !== 'single') {
+            mem.turn = activeTurn === 'bubu' ? 'dudu' : 'bubu';
+          }
+
           if (mem.cards.every((c) => c.matched)) {
             const bScore = mem.scores.bubu || 0;
             const dScore = mem.scores.dudu || 0;
@@ -797,7 +1010,7 @@ io.on('connection', (socket) => {
               : (winChar === 'dudu' ? room.coupleInfo.duduName : 'Bubu & Dudu Berabere');
 
             io.to(room.roomCode).emit('game_winner_card', {
-              gameTitle: 'Karşılıklı Hafıza Eşleştirme 🃏',
+              gameTitle: 'Anı Eşleştirme Oyunu 🃏',
               winnerChar: winChar,
               winnerName: winName,
               score: Math.max(bScore, dScore),
@@ -808,22 +1021,24 @@ io.on('connection', (socket) => {
             });
 
             sendPushToRoom(room, {
-              title: `🃏 Hafıza Oyununu ${winName} Kazandı!`,
+              title: `🃏 Anı Oyununu ${winName} Kazandı!`,
               body: `Skor: Bubu ${bScore} - Dudu ${dScore} 🎉`,
               fromChar: character
             });
           }
           saveDB(db);
-          io.to(room.roomCode).emit('room_state', room);
+          io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
         } else {
           // Eşleşmediyse 900ms sonra kapat ve sırayı karşı tarafa geçir
           setTimeout(() => {
             c1.flipped = false;
             c2.flipped = false;
             mem.flippedIndices = [];
-            mem.turn = activeTurn === 'bubu' ? 'dudu' : 'bubu';
+            if (mode !== 'single') {
+              mem.turn = activeTurn === 'bubu' ? 'dudu' : 'bubu';
+            }
             saveDB(db);
-            io.to(room.roomCode).emit('room_state', room);
+            io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
           }, 900);
         }
       }
@@ -914,6 +1129,28 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('edit_note', ({ roomCode, note, fromChar, fromName }) => {
+    const room = getRoom(roomCode || currentRoomCode);
+    const idx = room.notes.findIndex((n) => n.id === note.id);
+    if (idx >= 0) {
+      room.notes[idx] = {
+        ...room.notes[idx],
+        title: note.title || room.notes[idx].title,
+        content: note.content ?? room.notes[idx].content,
+        color: note.color || room.notes[idx].color,
+        mood: note.mood || room.notes[idx].mood,
+        updatedAt: new Date().toISOString()
+      };
+      saveDB(db);
+      io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+      sendPushToRoom(room, {
+        title: `✏️ ${fromName || 'Aşkın'} Bir Aşk Notunu Düzenledi`,
+        body: `${room.notes[idx].title}: "${room.notes[idx].content}"`,
+        fromChar
+      });
+    }
+  });
+
   socket.on('delete_note', ({ roomCode, noteId }) => {
     const room = getRoom(roomCode || currentRoomCode);
     room.notes = room.notes.filter((n) => n.id !== noteId);
@@ -998,6 +1235,30 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('edit_memory', ({ roomCode, memory, fromChar, fromName }) => {
+    const room = getRoom(roomCode || currentRoomCode);
+    const idx = room.memories.findIndex((m) => m.id === memory.id);
+    if (idx >= 0) {
+      room.memories[idx] = {
+        ...room.memories[idx],
+        date: memory.date || room.memories[idx].date,
+        title: memory.title || room.memories[idx].title,
+        description: memory.description ?? room.memories[idx].description,
+        mood: memory.mood || room.memories[idx].mood,
+        location: memory.location ?? room.memories[idx].location,
+        image: memory.image !== undefined ? memory.image : room.memories[idx].image,
+        updatedAt: new Date().toISOString()
+      };
+      saveDB(db);
+      io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+      sendPushToRoom(room, {
+        title: `✏️ ${fromName || 'Aşkın'} Bir Anıyı Düzenledi!`,
+        body: `${room.memories[idx].title} (${room.memories[idx].date})`,
+        fromChar
+      });
+    }
+  });
+
   socket.on('delete_memory', ({ roomCode, memoryId }) => {
     const room = getRoom(roomCode || currentRoomCode);
     room.memories = room.memories.filter((m) => m.id !== memoryId);
@@ -1031,6 +1292,31 @@ io.on('connection', (socket) => {
       body: `${newEvt.title} • Tarih: ${newEvt.date} Saat: ${newEvt.time}`,
       fromChar: newEvt.authorChar
     });
+  });
+
+  socket.on('edit_event', ({ roomCode, event, fromChar, fromName }) => {
+    const room = getRoom(roomCode || currentRoomCode);
+    const idx = room.events.findIndex((e) => e.id === event.id);
+    if (idx >= 0) {
+      room.events[idx] = {
+        ...room.events[idx],
+        date: event.date || room.events[idx].date,
+        time: event.time || room.events[idx].time,
+        title: event.title || room.events[idx].title,
+        description: event.description ?? room.events[idx].description,
+        category: event.category || room.events[idx].category,
+        remindBeforeDays: Number(event.remindBeforeDays ?? room.events[idx].remindBeforeDays ?? 1),
+        updatedAt: new Date().toISOString()
+      };
+      room.events.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      saveDB(db);
+      io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+      sendPushToRoom(room, {
+        title: `✏️ ${fromName || 'Aşkın'} Bir Planı / Etkinliği Düzenledi!`,
+        body: `${room.events[idx].title} • Tarih: ${room.events[idx].date} Saat: ${room.events[idx].time}`,
+        fromChar
+      });
+    }
   });
 
   socket.on('toggle_event', ({ roomCode, eventId }) => {

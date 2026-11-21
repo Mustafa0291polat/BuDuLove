@@ -25,6 +25,15 @@ let pendingMemoryImageBase64 = null;
 let currentSongIndex = 0;
 let isAudioPlaying = false;
 
+// Çevrimiçi (Online Presence) ve Oyun Modu ('couple' | 'single')
+let partnerPresenceState = { bubu: false, dudu: false };
+let currentGamePlayMode = 'couple'; // 'couple' (Çift Olarak Sırayla) veya 'single' (Tek Olarak)
+
+// Düzenleme (Edit) Durumları
+let editingMemoryId = null;
+let editingEventId = null;
+let editingNoteId = null;
+
 // Dart Oyunu Durumu
 let dartSettingHeadMode = false;
 let dartImageElement = null;
@@ -505,6 +514,22 @@ function initSocketConnection() {
       refreshQrModalInfo();
     });
 
+    // 3) Çevrimiçi (Online) Durum Güncellemesi
+    socket.on('presence_state', (status) => {
+      partnerPresenceState = status || { bubu: false, dudu: false };
+      updatePartnerPresenceUI();
+    });
+
+    socket.on('partner_online_alert', ({ character, userName }) => {
+      if (character !== myCharacter) {
+        showIosBanner('🟢💕', 'Sevgilin Şu An Çevrimiçi!', `${userName || 'Aşkın'} uygulamaya girdi ve şu an çevrimiçi!`);
+      }
+    });
+
+    socket.on('turn_locked_warning', ({ message }) => {
+      showIosBanner('⏳🎮', 'Sıra Sevgilinde!', message);
+    });
+
     // Uygulamaya ne eklenirse eklensin karşı tarafa canlı bildirim göster
     socket.on('activity_notification', (notif) => {
       if (notif.fromChar && notif.fromChar !== myCharacter) {
@@ -689,13 +714,38 @@ function chooseCharacterAndClose(charName) {
   closeModal('charSelectModal');
 }
 
+function updatePartnerPresenceUI() {
+  const partnerChar = getPartnerCharacter();
+  const isOnline = !!(partnerPresenceState && partnerPresenceState[partnerChar]);
+  const dot = document.getElementById('partnerOnlineDot');
+  const text = document.getElementById('partnerOnlineText');
+  if (dot) {
+    dot.style.background = isOnline ? '#2ECC71' : '#9E9E9E';
+    dot.style.boxShadow = isOnline ? '0 0 0 3px rgba(46, 204, 113, 0.28)' : 'none';
+  }
+  if (text) {
+    text.textContent = isOnline ? '🟢 Sevgilin şu an çevrimiçi' : '⚪ Sevgilin çevrimdışı';
+    text.style.color = isOnline ? '#1E8449' : 'var(--text-muted)';
+    text.style.fontWeight = isOnline ? '800' : '600';
+  }
+}
+
 function setMyCharacter(charName) {
   myCharacter = charName === 'dudu' ? 'dudu' : 'bubu';
   localStorage.setItem(storagePrefix + 'myChar', myCharacter);
   localStorage.setItem(storagePrefix + 'charChosenOnce', '1');
   updateCharacterRoleUI();
+  updatePartnerPresenceUI();
   renderAllFromState();
   subscribeDeviceToWebPush(false);
+
+  if (socket && socket.connected) {
+    socket.emit('update_presence_character', {
+      roomCode: currentRoomCode,
+      character: myCharacter,
+      userName: getMyDisplayName()
+    });
+  }
 
   const label = myCharacter === 'bubu' ? '🐼 Seçili Karakterin: Bubu' : '🐻 Seçili Karakterin: Dudu';
   showIosBanner(myCharacter === 'bubu' ? '🐼✨' : '🐻✨', 'Karakterin Seçildi!', label);
@@ -1266,7 +1316,24 @@ function startRushGame() {
   loop();
 }
 
-// --- OYUN 3: BUBU VS DUDU CANLI XOX ---
+function setGamePlayMode(mode) {
+  currentGamePlayMode = mode === 'single' ? 'single' : 'couple';
+  const btnCouple = document.getElementById('btnModeCouple');
+  const btnSingle = document.getElementById('btnModeSingle');
+  if (btnCouple && btnSingle) {
+    btnCouple.classList.toggle('active', currentGamePlayMode === 'couple');
+    btnSingle.classList.toggle('active', currentGamePlayMode === 'single');
+  }
+  showIosBanner(
+    currentGamePlayMode === 'couple' ? '👫🎮' : '👤🎮',
+    currentGamePlayMode === 'couple' ? 'Çift Olarak Oyna Modu Aktif!' : 'Tek Olarak Oyna Modu Aktif!',
+    currentGamePlayMode === 'couple'
+      ? 'XOX ve Anı oyunlarında sırayla oynanır! Hakkını kullandıktan sonra sevgilinin hamlesini beklersin.'
+      : 'Beklemeden tek başına (veya bota karşı) oynayabilirsin!'
+  );
+}
+
+// --- OYUN 3: BUBU VS DUDU CANLI XOX & ÖDÜL KAYIT GEÇMİŞİ ---
 function renderXoxBoard() {
   if (!roomState || !roomState.games || !roomState.games.xox) return;
   const xox = roomState.games.xox;
@@ -1275,6 +1342,11 @@ function renderXoxBoard() {
 
   document.getElementById('xoxScoreBubu').textContent = xox.scores?.bubu || 0;
   document.getElementById('xoxScoreDudu').textContent = xox.scores?.dudu || 0;
+
+  const rewardInput = document.getElementById('xoxCustomRewardInput');
+  if (rewardInput && document.activeElement !== rewardInput) {
+    rewardInput.value = xox.reward || '';
+  }
 
   const badge = document.getElementById('xoxTurnBadge');
   if (xox.winner === 'draw') {
@@ -1289,30 +1361,81 @@ function renderXoxBoard() {
     const symbol = cell === 'bubu' ? '🐼' : (cell === 'dudu' ? '🐻' : '');
     return `<div class="xox-cell" onclick="makeXoxMove(${idx})">${symbol}</div>`;
   }).join('');
+
+  // Kazanılan Ödüller ve Kazananlar Geçmişi
+  const historyList = document.getElementById('xoxRewardHistoryList');
+  const historyCount = document.getElementById('xoxRewardHistoryCount');
+  const history = xox.rewardHistory || [];
+  if (historyCount) historyCount.textContent = `${history.length} Kayıt`;
+  if (historyList) {
+    if (history.length === 0) {
+      historyList.innerHTML = `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:12px;">Henüz kazanılan ödül kaydı yok. Yukarıdan ödülü belirleyip ilk XOX maçınızı yapın! 🏆</div>`;
+    } else {
+      historyList.innerHTML = history.map((item) => {
+        const icon = item.winnerChar === 'bubu' ? '🐼' : '🐻';
+        return `
+          <div class="feed-item">
+            <div class="feed-icon">🏆</div>
+            <div class="feed-info">
+              <div class="feed-title">${icon} ${escapeHtml(item.winnerName)} Kazandı!</div>
+              <div class="feed-desc">🎁 Ödül: <strong>${escapeHtml(item.reward)}</strong></div>
+              <div class="feed-desc" style="font-size:10.5px;">🗓️ ${item.date || ''} • ${formatTimeShort(item.timestamp)}</div>
+            </div>
+            <button class="delete-mini-btn" onclick="deleteXoxRewardItem('${item.id}')" title="Kaydı Sil">🗑️</button>
+          </div>
+        `;
+      }).join('');
+    }
+  }
 }
 
 function makeXoxMove(index) {
   if (!roomState || !roomState.games?.xox) return;
   const xox = roomState.games.xox;
   if (xox.board[index] || xox.winner) return;
+
+  const currentTurn = xox.turn || 'bubu';
+  if (currentGamePlayMode === 'couple' && currentTurn !== myCharacter) {
+    playCuteSound('punch');
+    showIosBanner(
+      '⏳❌⭕',
+      'Sıra Sevgilinde!',
+      `Kendi hakkını kullandın! Şu an sıra sevgilinde (${currentTurn === 'bubu' ? '🐼 Bubu' : '🐻 Dudu'}), o oynayana kadar beklemelisin.`
+    );
+    return;
+  }
+
   playCuteSound('pop');
   if (socket && socket.connected) {
     socket.emit('xox_move', {
       roomCode: currentRoomCode,
       index,
-      character: xox.turn || myCharacter
+      character: myCharacter,
+      mode: currentGamePlayMode
     });
   }
-}
 
-function playXoxBotMove() {
-  if (!roomState || !roomState.games?.xox) return;
-  const xox = roomState.games.xox;
-  if (xox.winner) return;
-  const emptyIndices = xox.board.map((v, i) => v === null ? i : null).filter((v) => v !== null);
-  if (emptyIndices.length === 0) return;
-  const pick = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
-  makeXoxMove(pick);
+  // Eğer "Tek Olarak Oyna" modundaysa 450ms sonra karşı karakterin (botun) hamlesini otomatik yap
+  if (currentGamePlayMode === 'single') {
+    setTimeout(() => {
+      if (!roomState || !roomState.games?.xox) return;
+      const latestXox = roomState.games.xox;
+      if (latestXox.winner) return;
+      const botChar = getPartnerCharacter();
+      if (latestXox.turn !== botChar) return;
+      const emptyIndices = latestXox.board.map((v, i) => v === null ? i : null).filter((v) => v !== null);
+      if (emptyIndices.length === 0) return;
+      const pick = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+      if (socket && socket.connected) {
+        socket.emit('xox_move', {
+          roomCode: currentRoomCode,
+          index: pick,
+          character: botChar,
+          mode: 'single'
+        });
+      }
+    }, 450);
+  }
 }
 
 function resetXoxGame() {
@@ -1320,21 +1443,38 @@ function resetXoxGame() {
     socket.emit('xox_move', {
       roomCode: currentRoomCode,
       reset: true,
-      character: myCharacter
+      character: myCharacter,
+      mode: currentGamePlayMode
     });
   }
 }
 
-function changeXoxReward(reward) {
+function saveCustomXoxReward() {
+  const input = document.getElementById('xoxCustomRewardInput');
+  const reward = input ? input.value.trim() : '';
+  if (!reward) {
+    showIosBanner('🎁⚠️', 'Ödül Yazın', 'Lütfen kazananın alacağı ödülü kutuya yazın.');
+    return;
+  }
   if (socket && socket.connected) {
     socket.emit('xox_move', {
       roomCode: currentRoomCode,
       reward
     });
   }
+  showIosBanner('🎁✅', 'XOX Ödülü Belirlendi!', `Kazananın Alacağı Ödül: "${reward}"`);
 }
 
-// --- OYUN 4A: KARŞILIKLI CANLI HAFIZA KARTLARI (XOX GİBİ İKİ TELEFONDAN SIRAYLA) ---
+function deleteXoxRewardItem(rewardId) {
+  if (socket && socket.connected) {
+    socket.emit('delete_xox_reward', {
+      roomCode: currentRoomCode,
+      rewardId
+    });
+  }
+}
+
+// --- OYUN 4A: KARŞILIKLI VEYA TEK KİŞİLİK HAFIZA KARTLARI ---
 function renderMultiplayerMemoryGrid() {
   const grid = document.getElementById('memoryMatchGrid');
   if (!grid || !roomState || !roomState.games || !roomState.games.memoryMatch) return;
@@ -1370,13 +1510,29 @@ function renderMultiplayerMemoryGrid() {
 }
 
 function flipMultiplayerMemoryCard(idx) {
+  if (!roomState || !roomState.games?.memoryMatch) return;
+  const mem = roomState.games.memoryMatch;
+  const activeTurn = mem.turn || 'bubu';
+
+  // Çift Olarak Oyna modundaysa kendi sıran değilken tıklayamazsın!
+  if (currentGamePlayMode === 'couple' && activeTurn !== myCharacter) {
+    playCuteSound('punch');
+    showIosBanner(
+      '⏳🃏',
+      'Sıra Sevgilinde!',
+      `Kendi hakkını kullandın! Şu an sıra sevgilinde (${activeTurn === 'bubu' ? '🐼 Bubu' : '🐻 Dudu'}), o kendi hakkını kullanana kadar beklemelisin.`
+    );
+    return;
+  }
+
   playCuteSound('pop');
   if (socket && socket.connected) {
     socket.emit('memory_game_action', {
       roomCode: currentRoomCode,
       action: 'flip',
       index: idx,
-      character: myCharacter
+      character: myCharacter,
+      mode: currentGamePlayMode
     });
   }
 }
@@ -1387,7 +1543,8 @@ function resetMultiplayerMemoryGame() {
     socket.emit('memory_game_action', {
       roomCode: currentRoomCode,
       action: 'reset',
-      character: myCharacter
+      character: myCharacter,
+      mode: currentGamePlayMode
     });
   }
 }
@@ -1837,31 +1994,60 @@ function addSearchedSongToPlaylist(songData) {
   setTimeout(() => playSongByIndex(0), 350);
 }
 
+function extractYouTubeIdClient(url) {
+  if (!url) return null;
+  const m = String(url).match(/(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function extractSpotifyIdClient(url) {
+  if (!url) return null;
+  const m = String(url).match(/spotify\.com\/(?:intl-[a-z]+\/)?track\/([a-zA-Z0-9]+)/);
+  return m ? m[1] : null;
+}
+
+async function postNewSongToServer(songPayload) {
+  try {
+    const res = await fetch(`/api/room/${currentRoomCode}/song`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ song: songPayload })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      setTimeout(() => playSongByIndex(0), 300);
+      return true;
+    }
+  } catch (e) {}
+  // Yedek olarak Socket üzerinden gönder
+  if (socket && socket.connected) {
+    socket.emit('add_song', { roomCode: currentRoomCode, song: songPayload });
+    setTimeout(() => playSongByIndex(0), 350);
+    return true;
+  }
+  return false;
+}
+
 function uploadCustomAudioFile(event) {
   const file = event.target.files?.[0];
   if (!file) return;
-  if (file.size > 15 * 1024 * 1024) {
-    showIosBanner('🎵⚠️', 'Dosya Boyutu Çok Büyük', 'Lütfen 15 MB altındaki bir MP3/ses dosyası seçin.');
+  if (file.size > 18 * 1024 * 1024) {
+    showIosBanner('🎵⚠️', 'Dosya Boyutu Çok Büyük', 'Lütfen 18 MB altındaki bir MP3/M4A/ses dosyası seçin.');
     return;
   }
+  showIosBanner('🎵⏳', 'Ses Dosyası Yükleniyor...', 'Lütfen birkaç saniye bekleyin...');
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     const cleanName = file.name.replace(/\.[^/.]+$/, '');
-    if (socket && socket.connected) {
-      socket.emit('add_song', {
-        roomCode: currentRoomCode,
-        song: {
-          title: cleanName,
-          artist: `${getMyDisplayName()} Yükledi`,
-          audioUrl: e.target.result,
-          coverUrl: '/assets/budu-icon.png',
-          addedByChar: myCharacter,
-          addedByName: getMyDisplayName()
-        }
-      });
-    }
-    showIosBanner('🎵📁', 'Şarkı Yüklendi!', `${cleanName} "Bizim Şarkılarımız" listesine eklendi!`);
-    setTimeout(() => playSongByIndex(0), 400);
+    await postNewSongToServer({
+      title: cleanName,
+      artist: `${getMyDisplayName()} Yükledi`,
+      audioUrl: e.target.result,
+      coverUrl: '/assets/budu-icon.png',
+      addedByChar: myCharacter,
+      addedByName: getMyDisplayName()
+    });
+    showIosBanner('🎵📁', 'Şarkı Yüklendi ve Çalıyor!', `${cleanName} "Bizim Şarkılarımız" listesine eklendi!`);
   };
   reader.readAsDataURL(file);
 }
@@ -1874,33 +2060,33 @@ function openManualSongModal() {
   document.getElementById('manualSongModal').classList.add('open');
 }
 
-function saveManualSong() {
+async function saveManualSong() {
   const title = document.getElementById('songTitleInput').value.trim();
   const artist = document.getElementById('songArtistInput').value.trim() || 'Bizim Şarkımız';
   const audioUrl = document.getElementById('songUrlInput').value.trim();
   const note = document.getElementById('songNoteInput').value.trim();
 
-  if (!title) {
-    showIosBanner('🎵⚠️', 'Şarkı Adı Girin', 'Lütfen şarkının adını yazın.');
+  if (!title && !audioUrl) {
+    showIosBanner('🎵⚠️', 'Link veya Şarkı Adı Girin', 'Lütfen YouTube/Spotify/MP3 linkini veya şarkı adını yazın.');
     return;
   }
 
-  if (socket && socket.connected) {
-    socket.emit('add_song', {
-      roomCode: currentRoomCode,
-      song: {
-        title,
-        artist,
-        audioUrl,
-        note,
-        coverUrl: '/assets/budu-icon.png',
-        addedByChar: myCharacter,
-        addedByName: getMyDisplayName()
-      }
-    });
-  }
   closeModal('manualSongModal');
-  showIosBanner('🎵💖', 'Şarkı Listeye Eklendi!', `${title} kaydedildi ve sevgiline bildirim gitti!`);
+  showIosBanner('🎵⏳', 'Şarkı Hazırlanıyor...', 'Link çözümleniyor ve listeye ekleniyor...');
+
+  await postNewSongToServer({
+    title: title || 'Bizim Şarkımız 🎵',
+    artist,
+    audioUrl,
+    youtubeId: extractYouTubeIdClient(audioUrl),
+    spotifyId: extractSpotifyIdClient(audioUrl),
+    note,
+    coverUrl: '/assets/budu-icon.png',
+    addedByChar: myCharacter,
+    addedByName: getMyDisplayName()
+  });
+
+  showIosBanner('🎵💖', 'Şarkı Listeye Eklendi!', 'Şarkınız eklendi ve çalmaya hazır!');
 }
 
 function renderSavedSongsList() {
@@ -1910,7 +2096,7 @@ function renderSavedSongsList() {
   document.getElementById('songsCountBadge').textContent = `${songs.length} Şarkı`;
 
   if (songs.length === 0) {
-    container.innerHTML = `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:14px;">Henüz "Bizim Şarkılarımız" listesine şarkı eklenmedi. Yukarıdan şarkı arayıp veya telefondan MP3 seçip ilk şarkınızı ekleyin! 🎵</div>`;
+    container.innerHTML = `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:14px;">Henüz "Bizim Şarkılarımız" listesine şarkı eklenmedi. Yukarıdan şarkı arayıp veya link/MP3 ekleyip ilk şarkınızı ekleyin! 🎵</div>`;
     return;
   }
 
@@ -1928,7 +2114,7 @@ function renderSavedSongsList() {
   `).join('');
 }
 
-function playSongByIndex(idx) {
+async function playSongByIndex(idx) {
   const songs = (roomState && roomState.songs) || [];
   if (songs.length === 0 || !songs[idx]) return;
   currentSongIndex = idx;
@@ -1939,11 +2125,81 @@ function playSongByIndex(idx) {
   document.getElementById('nowPlayingCover').src = song.coverUrl || '/assets/budu-icon.png';
 
   const audio = document.getElementById('mainAudioElement');
-  if (song.audioUrl) {
-    audio.src = song.audioUrl;
-    audio.play().catch(() => {});
+  const embedWrap = document.getElementById('embeddedMediaPlayerWrap');
+  const ytId = song.youtubeId || extractYouTubeIdClient(song.audioUrl);
+  const spId = song.spotifyId || extractSpotifyIdClient(song.audioUrl);
+
+  if (ytId && embedWrap) {
+    // YouTube şarkısını gömülü oynatıcıda aç ve aynı zamanda ses akışı varsa hazır tut
+    audio.pause();
+    embedWrap.style.display = 'block';
+    embedWrap.innerHTML = `
+      <iframe
+        width="100%"
+        height="190"
+        src="https://www.youtube.com/embed/${ytId}?autoplay=1&playsinline=1&rel=0"
+        title="${escapeHtml(song.title)}"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen
+        style="display:block;"
+      ></iframe>
+    `;
+    document.getElementById('nowPlayingCover').classList.add('playing');
+  } else if (spId && embedWrap) {
+    audio.pause();
+    embedWrap.style.display = 'block';
+    embedWrap.innerHTML = `
+      <iframe
+        src="https://open.spotify.com/embed/track/${spId}?utm_source=generator"
+        width="100%"
+        height="152"
+        frameBorder="0"
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        loading="lazy"
+        style="display:block;"
+      ></iframe>
+    `;
+    document.getElementById('nowPlayingCover').classList.add('playing');
   } else {
-    showIosBanner('🎵ℹ️', song.title, 'Bu şarkı ses dosyası olmadan not olarak eklendi. Sesli çalmak için yukarıdaki arama kutusundan şarkıyı arayıp ekleyebilirsiniz!');
+    if (embedWrap) {
+      embedWrap.style.display = 'none';
+      embedWrap.innerHTML = '';
+    }
+    const streamToPlay = song.audioUrl || song.fallbackStreamUrl || '';
+    if (streamToPlay) {
+      audio.src = streamToPlay;
+      audio.onerror = async () => {
+        // Eğer girilen link doğrudan MP3 değilse otomatik olarak şarkı adından ses akışını bulup çal!
+        if (song.fallbackStreamUrl && audio.src !== song.fallbackStreamUrl) {
+          audio.src = song.fallbackStreamUrl;
+          audio.play().catch(() => {});
+          return;
+        }
+        try {
+          const q = `${song.title} ${song.artist !== 'Bizim Şarkımız' ? song.artist : ''}`.trim();
+          const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=music&entity=song&country=TR&limit=1`);
+          const d = await r.json();
+          if (d.results && d.results[0] && d.results[0].previewUrl) {
+            audio.onerror = null;
+            audio.src = d.results[0].previewUrl;
+            audio.play().catch(() => {});
+          }
+        } catch (e) {}
+      };
+      audio.play().catch(() => {});
+    } else {
+      // Sadece şarkı adı yazıldıysa otomatik arayıp çal
+      try {
+        const q = `${song.title} ${song.artist !== 'Bizim Şarkımız' ? song.artist : ''}`.trim();
+        const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=music&entity=song&country=TR&limit=1`);
+        const d = await r.json();
+        if (d.results && d.results[0] && d.results[0].previewUrl) {
+          audio.src = d.results[0].previewUrl;
+          audio.play().catch(() => {});
+        }
+      } catch (e) {}
+    }
   }
 
   renderSavedSongsList();
@@ -2014,6 +2270,28 @@ function createStickyNote() {
     return;
   }
 
+  if (editingNoteId) {
+    if (socket && socket.connected) {
+      socket.emit('edit_note', {
+        roomCode: currentRoomCode,
+        fromChar: myCharacter,
+        fromName: getMyDisplayName(),
+        note: {
+          id: editingNoteId,
+          title: title || 'Sevgilime Notum 💌',
+          content,
+          color,
+          mood
+        }
+      });
+    }
+    editingNoteId = null;
+    document.getElementById('noteTitleInput').value = '';
+    document.getElementById('noteContentInput').value = '';
+    showIosBanner('✏️💖', 'Aşk Notun Düzenlendi!', 'Değişiklik kaydedildi ve sevgiline bildirim gönderildi.');
+    return;
+  }
+
   if (socket && socket.connected) {
     socket.emit('add_note', {
       roomCode: currentRoomCode,
@@ -2031,6 +2309,19 @@ function createStickyNote() {
   document.getElementById('noteTitleInput').value = '';
   document.getElementById('noteContentInput').value = '';
   showIosBanner('📌💖', 'Aşk Notun Kaydedildi!', 'Sevgilinin telefonuna bildirim gönderildi.');
+}
+
+function startEditStickyNote(noteId) {
+  if (!roomState || !roomState.notes) return;
+  const note = roomState.notes.find((n) => n.id === noteId);
+  if (!note) return;
+  editingNoteId = note.id;
+  document.getElementById('noteTitleInput').value = note.title || '';
+  document.getElementById('noteContentInput').value = note.content || '';
+  document.getElementById('noteColorSelect').value = note.color || 'visne';
+  document.getElementById('noteMoodSelect').value = note.mood || 'kiss';
+  document.getElementById('noteContentInput').focus();
+  showIosBanner('✏️💌', 'Not Düzenleme Modu', 'Yukarıdaki kutudan notu düzenleyip kaydet butonuna basabilirsin.');
 }
 
 function deleteStickyNote(noteId) {
@@ -2059,7 +2350,10 @@ function renderStickyNotes() {
       </div>
       <div class="note-footer">
         <span>${n.authorChar === 'bubu' ? '🐼' : '🐻'} ${escapeHtml(n.authorName)}</span>
-        <button class="delete-mini-btn" onclick="deleteStickyNote('${n.id}')" title="Notu Sil">🗑️</button>
+        <div style="display:flex; gap:4px;">
+          <button class="delete-mini-btn" onclick="startEditStickyNote('${n.id}')" title="Notu Düzenle">✏️</button>
+          <button class="delete-mini-btn" onclick="deleteStickyNote('${n.id}')" title="Notu Sil">🗑️</button>
+        </div>
       </div>
     </div>
   `).join('');
@@ -2294,7 +2588,10 @@ function renderUpcomingEventsAndReminders(events) {
             </div>
             ${ev.description ? `<div class="feed-desc">${escapeHtml(ev.description)}</div>` : ''}
           </div>
-          <button class="delete-mini-btn" onclick="deleteEventItem('${ev.id}')">🗑️</button>
+          <div style="display:flex; gap:4px;">
+            <button class="delete-mini-btn" onclick="openEditEventModal('${ev.id}')" title="Planı Düzenle">✏️</button>
+            <button class="delete-mini-btn" onclick="deleteEventItem('${ev.id}')" title="Planı Sil">🗑️</button>
+          </div>
         </div>
       `;
     }).join('');
@@ -2344,7 +2641,10 @@ function renderMemoriesAlbum(memories) {
               ${m.authorChar === 'bubu' ? '🐼' : '🐻'} ${escapeHtml(m.authorName)} ${m.location ? `• 📍 ${escapeHtml(m.location)}` : ''}
             </div>
           </div>
-          <button class="delete-mini-btn" onclick="deleteMemoryItem('${m.id}')">🗑️</button>
+          <div style="display:flex; gap:5px;">
+            <button class="delete-mini-btn" onclick="openEditMemoryModal('${m.id}')" title="Anıyı Düzenle">✏️</button>
+            <button class="delete-mini-btn" onclick="deleteMemoryItem('${m.id}')" title="Anıyı Sil">🗑️</button>
+          </div>
         </div>
       </div>
     `;
@@ -2352,12 +2652,35 @@ function renderMemoriesAlbum(memories) {
 }
 
 function openMemoryModal() {
+  editingMemoryId = null;
   document.getElementById('memDateInput').value = selectedCalDate || formatDateISO(new Date());
   document.getElementById('memTitleInput').value = '';
   document.getElementById('memDescInput').value = '';
   document.getElementById('memLocationInput').value = '';
   document.getElementById('memPhotoPreview').style.display = 'none';
   pendingMemoryImageBase64 = null;
+  document.getElementById('memoryModal').classList.add('open');
+}
+
+function openEditMemoryModal(memoryId) {
+  if (!roomState || !roomState.memories) return;
+  const mem = roomState.memories.find((m) => m.id === memoryId);
+  if (!mem) return;
+  editingMemoryId = mem.id;
+  document.getElementById('memDateInput').value = mem.date || formatDateISO(new Date());
+  document.getElementById('memTitleInput').value = mem.title || '';
+  document.getElementById('memMoodInput').value = mem.mood || '🥰 Çok Aşık';
+  document.getElementById('memLocationInput').value = mem.location || '';
+  document.getElementById('memDescInput').value = mem.description || '';
+  pendingMemoryImageBase64 = mem.image || null;
+
+  const prev = document.getElementById('memPhotoPreview');
+  if (mem.image) {
+    prev.src = mem.image;
+    prev.style.display = 'block';
+  } else {
+    prev.style.display = 'none';
+  }
   document.getElementById('memoryModal').classList.add('open');
 }
 
@@ -2378,6 +2701,29 @@ function saveNewMemory() {
   const mood = document.getElementById('memMoodInput').value;
   const location = document.getElementById('memLocationInput').value.trim();
   const description = document.getElementById('memDescInput').value.trim();
+
+  if (editingMemoryId) {
+    if (socket && socket.connected) {
+      socket.emit('edit_memory', {
+        roomCode: currentRoomCode,
+        fromChar: myCharacter,
+        fromName: getMyDisplayName(),
+        memory: {
+          id: editingMemoryId,
+          date,
+          title,
+          mood,
+          location,
+          description,
+          image: pendingMemoryImageBase64
+        }
+      });
+    }
+    editingMemoryId = null;
+    closeModal('memoryModal');
+    showIosBanner('✏️💖', 'Anı Güncellendi!', `${title} anısı düzenlendi ve kaydedildi.`);
+    return;
+  }
 
   const memory = {
     date,
@@ -2405,9 +2751,25 @@ function deleteMemoryItem(memoryId) {
 }
 
 function openEventModal() {
+  editingEventId = null;
   document.getElementById('evtDateInput').value = selectedCalDate || formatDateISO(new Date());
+  document.getElementById('evtTimeInput').value = '19:30';
   document.getElementById('evtTitleInput').value = '';
   document.getElementById('evtDescInput').value = '';
+  document.getElementById('eventModal').classList.add('open');
+}
+
+function openEditEventModal(eventId) {
+  if (!roomState || !roomState.events) return;
+  const ev = roomState.events.find((e) => e.id === eventId);
+  if (!ev) return;
+  editingEventId = ev.id;
+  document.getElementById('evtDateInput').value = ev.date || formatDateISO(new Date());
+  document.getElementById('evtTimeInput').value = ev.time || '19:30';
+  document.getElementById('evtTitleInput').value = ev.title || '';
+  document.getElementById('evtCategoryInput').value = ev.category || 'date';
+  document.getElementById('evtRemindInput').value = String(ev.remindBeforeDays ?? 1);
+  document.getElementById('evtDescInput').value = ev.description || '';
   document.getElementById('eventModal').classList.add('open');
 }
 
@@ -2421,6 +2783,29 @@ function saveNewEvent() {
 
   if (!title) {
     showIosBanner('📅⚠️', 'Etkinlik Başlığı Girin', 'Lütfen planladığınız etkinliğin adını yazın.');
+    return;
+  }
+
+  if (editingEventId) {
+    if (socket && socket.connected) {
+      socket.emit('edit_event', {
+        roomCode: currentRoomCode,
+        fromChar: myCharacter,
+        fromName: getMyDisplayName(),
+        event: {
+          id: editingEventId,
+          date,
+          time,
+          title,
+          category,
+          remindBeforeDays,
+          description
+        }
+      });
+    }
+    editingEventId = null;
+    closeModal('eventModal');
+    showIosBanner('✏️📅', 'Etkinlik / Plan Düzenlendi!', `${title} planı güncellendi ve sevgiline bildirim gitti.`);
     return;
   }
 
