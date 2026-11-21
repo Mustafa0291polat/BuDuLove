@@ -588,6 +588,8 @@ html, body {
   padding: 15px;
   margin-bottom: 14px;
   box-shadow: var(--shadow-soft);
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .card-header-row {
@@ -1583,24 +1585,58 @@ html, body {
   font-weight: 700;
 }
 
-.form-group { margin-bottom: 10px; }
+.form-group {
+  margin-bottom: 10px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
 .form-label {
   display: block;
   font-size: 11.5px;
   font-weight: 800;
   color: var(--text-muted);
   margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .form-input, .form-textarea, .form-select {
+  display: block;
   width: 100%;
-  padding: 10px 13px;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 10px 11px;
   border-radius: 13px;
   border: 1.5px solid var(--pink-soft);
   background: rgba(255, 255, 255, 0.95);
   font-size: 13px;
   color: var(--text-dark);
   outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type="date"].form-input,
+input[type="time"].form-input {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 41px;
+  padding: 8px 9px;
+  font-size: 12.5px;
+  line-height: 1.2;
+  overflow: hidden;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type="date"].form-input::-webkit-date-and-time-value,
+input[type="time"].form-input::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
 }
 
 .form-textarea { min-height: 70px; resize: vertical; }

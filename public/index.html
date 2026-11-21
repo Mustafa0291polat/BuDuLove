@@ -16,7 +16,7 @@
   <link rel="apple-touch-icon-precomposed" href="/apple-touch-icon-precomposed.png?v=4" />
   <link rel="icon" type="image/png" sizes="180x180" href="/apple-touch-icon.png?v=4" />
 
-  <link rel="stylesheet" href="/css/style.css?v=7" />
+  <link rel="stylesheet" href="/css/style.css?v=15" />
 </head>
 <body>
   <!-- =========================================================
@@ -748,7 +748,7 @@
             </div>
           </div>
 
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <div style="display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:8px; align-items:end;">
             <div class="form-group">
               <label class="form-label">🐼 Bubu'nun İsmi / Hitabı:</label>
               <input id="inputBubuName" type="text" class="form-input" value="Bubu" />
@@ -759,7 +759,7 @@
             </div>
           </div>
 
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <div style="display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:8px; align-items:end;">
             <div class="form-group">
               <label class="form-label">🔑 Ortak Çift Odası Kodu:</label>
               <input id="inputRoomCode" type="text" class="form-input" value="BUDU-2026" />
@@ -971,7 +971,7 @@
         <div class="card-title">📅 Etkinlik Planla & Hatırlatıcı Kur</div>
         <button class="delete-mini-btn" onclick="closeModal('eventModal')">✕</button>
       </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+      <div style="display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:8px; align-items:end;">
         <div class="form-group">
           <label class="form-label">📅 Etkinlik Tarihi:</label>
           <input id="evtDateInput" type="date" class="form-input" />
@@ -1092,6 +1092,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/app.js?v=14"></script>
+  <script src="/js/app.js?v=15"></script>
 </body>
 </html>
