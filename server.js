@@ -182,7 +182,11 @@ function loadDB() {
   return initial;
 }
 
-function saveDB(dbData) {
+let saveDbTimer = null;
+let isSavingDb = false;
+let pendingSaveDb = false;
+
+function saveDBSync(dbData) {
   try {
     const tmpFile = DB_FILE + '.tmp';
     fs.writeFileSync(tmpFile, JSON.stringify(dbData, null, 2), 'utf8');
@@ -194,6 +198,40 @@ function saveDB(dbData) {
       console.error('Veritabanı yazma hatası:', err);
     }
   }
+}
+
+async function flushAsyncDBWrite(dbData) {
+  if (isSavingDb) {
+    pendingSaveDb = true;
+    return;
+  }
+  isSavingDb = true;
+  try {
+    const payload = JSON.stringify(dbData, null, 2);
+    const tmpFile = DB_FILE + '.tmp';
+    await fs.promises.writeFile(tmpFile, payload, 'utf8');
+    await fs.promises.rename(tmpFile, DB_FILE);
+  } catch (e) {
+    try {
+      await fs.promises.writeFile(DB_FILE, JSON.stringify(dbData, null, 2), 'utf8');
+    } catch (err) {
+      console.error('Asenkron veritabanı yazma hatası:', err);
+    }
+  } finally {
+    isSavingDb = false;
+    if (pendingSaveDb) {
+      pendingSaveDb = false;
+      flushAsyncDBWrite(dbData);
+    }
+  }
+}
+
+function saveDB(dbData) {
+  if (saveDbTimer) clearTimeout(saveDbTimer);
+  saveDbTimer = setTimeout(() => {
+    saveDbTimer = null;
+    flushAsyncDBWrite(dbData);
+  }, 60);
 }
 
 const db = loadDB();
@@ -250,57 +288,73 @@ function getRoom(roomCode) {
 }
 
 // ============================================================================
-// GERÇEK ARKA PLAN / UYGULAMA KAPALIYKEN WEB PUSH BİLDİRİM MOTORU
+// GERÇEK ARKA PLAN / UYGULAMA KAPALIYKEN WEB PUSH BİLDİRİM MOTORU (0ms PARALEL)
 // ============================================================================
-async function sendPushToRoom(room, { title, body, fromChar, url = '/', tag = 'budulove-notif', sendToAll = false }) {
-  // 1) Uygulama açıksa anında Socket.io üzerinden her iki ekrana canlı bildirim gönder
-  io.to(room.roomCode).emit('activity_notification', {
-    title,
-    body,
-    fromChar: fromChar || 'bubu',
-    timestamp: new Date().toISOString()
-  });
+async function sendPushToRoom(room, { title, body, fromChar, url = '/', tag = 'budulove-notif', sendToAll = false, suppressSocketActivity = false }) {
+  // 1) Uygulama açıksa anında (0ms) Socket.io üzerinden canlı bildirim gönder
+  if (!suppressSocketActivity) {
+    io.to(room.roomCode).emit('activity_notification', {
+      title,
+      body,
+      fromChar: fromChar || 'bubu',
+      timestamp: new Date().toISOString()
+    });
+  }
 
-  // 2) Uygulama arka planda veya tamamen kapalıysa Apple/Google Web Push sunucusu üzerinden bildirim gönder
+  // 2) Uygulama arka planda veya tamamen kapalıysa Apple/Google Web Push sunucusuna PARALEL ve YÜKSEK ÖNCELİKLİ (urgency: high) gönder
   if (!Array.isArray(room.pushSubscriptions) || room.pushSubscriptions.length === 0) return;
 
+  const uniqueTag = tag || ('budulove-' + Date.now());
   const payload = JSON.stringify({
     title: title || 'BuDuLove 💕',
     body: body || 'Sevgilinden yeni bir hareket var!',
     icon: '/apple-touch-icon.png',
     badge: '/apple-touch-icon.png',
     url,
-    tag,
+    tag: uniqueTag,
     timestamp: Date.now()
   });
 
-  const validSubs = [];
   const mutedMap = room.mutedCharacters || {};
-  for (const item of room.pushSubscriptions) {
-    if (!item || !item.subscription || !item.subscription.endpoint) continue;
-    // Eğer kullanıcı bildirimleri çan butonundan kapattıysa (muted) arka plan bildirimi gönderme!
-    if (item.muted || (item.character && mutedMap[item.character])) {
-      validSubs.push(item);
-      continue;
-    }
-    const shouldSend = sendToAll || !fromChar || !item.character || item.character !== fromChar;
-    if (!shouldSend) {
-      validSubs.push(item);
-      continue;
-    }
-    try {
-      await webPush.sendNotification(item.subscription, payload);
-      validSubs.push(item);
-    } catch (err) {
-      if (err.statusCode === 410 || err.statusCode === 404) {
-        // Süresi dolmuş aboneliği temizle
-      } else {
-        validSubs.push(item);
+  const pushOptions = {
+    TTL: 120,
+    urgency: 'high'
+  };
+
+  const results = await Promise.allSettled(
+    room.pushSubscriptions.map(async (item) => {
+      if (!item || !item.subscription || !item.subscription.endpoint) {
+        return { keep: false, item };
       }
+      if (item.muted || (item.character && mutedMap[item.character])) {
+        return { keep: true, item };
+      }
+      const shouldSend = sendToAll || !fromChar || !item.character || item.character !== fromChar;
+      if (!shouldSend) {
+        return { keep: true, item };
+      }
+      try {
+        await webPush.sendNotification(item.subscription, payload, pushOptions);
+        return { keep: true, item };
+      } catch (err) {
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          return { keep: false, item };
+        }
+        return { keep: true, item };
+      }
+    })
+  );
+
+  const validSubs = [];
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value && r.value.keep) {
+      validSubs.push(r.value.item);
     }
   }
-  room.pushSubscriptions = validSubs;
-  saveDB(db);
+  if (validSubs.length !== room.pushSubscriptions.length) {
+    room.pushSubscriptions = validSubs;
+    saveDB(db);
+  }
 }
 
 // VAPID Public Key Endpoint
@@ -459,10 +513,17 @@ app.post('/api/auth/verify', (req, res) => {
     failedPinAttempts.delete(clientIp);
     const activePinHash = getRoomPinHash(room);
     const token = createAuthToken(room.roomCode, activePinHash);
+    const charRole = req.body.character === 'dudu' ? 'dudu' : (req.body.character === 'bubu' ? 'bubu' : null);
+    const uName = req.body.userName || (charRole === 'dudu' ? room.coupleInfo.duduName : room.coupleInfo.bubuName);
+    if (charRole) {
+      markCharacterOnlineAndNotify(room, charRole, uName, { notifyEntry: true });
+    }
     return res.json({
       success: true,
       authToken: token,
-      roomCode: room.roomCode
+      roomCode: room.roomCode,
+      presence: getRoomPresence(room.roomCode),
+      room: sanitizeRoomForClient(room)
     });
   }
 
@@ -599,7 +660,7 @@ app.post('/api/room/:code/song', async (req, res) => {
 
     room.songs.unshift(newSong);
     saveDB(db);
-    io.to(room.roomCode).emit('song_added', { song: newSong, room: sanitizeRoomForClient(room) });
+    io.to(room.roomCode).emit('song_added', { song: newSong, songs: room.songs });
 
     sendPushToRoom(room, {
       title: `🎵 ${newSong.addedByName} "Bizim Şarkılarımız"a Şarkı Ekledi!`,
@@ -629,14 +690,22 @@ function mergeArrayById(serverArr, clientArr, deletedIds = []) {
 }
 
 // ============================================================================
-// ÇEVRİMİÇİ (ONLINE PRESENCE) TAKİP SİSTEMİ
+// ÇEVRİMİÇİ (ONLINE PRESENCE) TAKİP VE UYGULAMAYA GİRİŞ BİLDİRİM SİSTEMİ
 // ============================================================================
 const onlineSocketsByRoom = new Map(); // roomCode -> Map<socketId, { character, userName }>
+const activePresenceByRoom = new Map(); // roomCode -> { bubu: number, dudu: number } (last active timestamp)
+const lastOnlineNotifAtByRoom = new Map(); // roomCode -> { bubu: number, dudu: number }
+const PRESENCE_TTL_MS = 45 * 1000; // 45 sn kalp atışı (heartbeat) süresi
 
 function getRoomPresence(roomCode) {
   const code = (roomCode || 'BUDU-2026').trim().toUpperCase();
   const map = onlineSocketsByRoom.get(code);
-  const status = { bubu: false, dudu: false };
+  const hb = activePresenceByRoom.get(code) || { bubu: 0, dudu: 0 };
+  const now = Date.now();
+  const status = {
+    bubu: (now - (hb.bubu || 0)) < PRESENCE_TTL_MS,
+    dudu: (now - (hb.dudu || 0)) < PRESENCE_TTL_MS
+  };
   if (map) {
     for (const info of map.values()) {
       if (info.character === 'bubu') status.bubu = true;
@@ -646,36 +715,109 @@ function getRoomPresence(roomCode) {
   return status;
 }
 
-function registerSocketPresence(socket, roomCode, character, userName) {
-  const code = (roomCode || 'BUDU-2026').trim().toUpperCase();
+function markCharacterOnlineAndNotify(room, character, userName, { socket = null, notifyEntry = false } = {}) {
+  const code = (room.roomCode || 'BUDU-2026').trim().toUpperCase();
+  const charRole = character === 'dudu' ? 'dudu' : 'bubu';
+  const displayName = userName || (charRole === 'dudu' ? (room.coupleInfo?.duduName || 'Dudu') : (room.coupleInfo?.bubuName || 'Bubu'));
+
   if (!onlineSocketsByRoom.has(code)) {
     onlineSocketsByRoom.set(code, new Map());
   }
-  const roomMap = onlineSocketsByRoom.get(code);
-  const before = getRoomPresence(code);
-  roomMap.set(socket.id, { character: character || 'bubu', userName: userName || 'Bubu' });
-  const after = getRoomPresence(code);
+  if (!activePresenceByRoom.has(code)) {
+    activePresenceByRoom.set(code, { bubu: 0, dudu: 0 });
+  }
+  if (!lastOnlineNotifAtByRoom.has(code)) {
+    lastOnlineNotifAtByRoom.set(code, { bubu: 0, dudu: 0 });
+  }
 
+  const before = getRoomPresence(code);
+  const roomMap = onlineSocketsByRoom.get(code);
+  if (socket && socket.id) {
+    roomMap.set(socket.id, { character: charRole, userName: displayName });
+  }
+
+  const now = Date.now();
+  const hb = activePresenceByRoom.get(code);
+  hb[charRole] = now;
+
+  const after = getRoomPresence(code);
   io.to(code).emit('presence_state', after);
 
-  // Eğer bu karakter yeni çevrimiçi olduysa karşı tarafa canlı bildirim gönder
-  if (character && !before[character] && after[character]) {
-    socket.to(code).emit('partner_online_alert', {
-      character,
-      userName: userName || (character === 'bubu' ? 'Bubu' : 'Dudu'),
+  // Uygulamaya yeni girildiğinde (veya çevrimdışından çevrimiçiye geçildiğinde) karşı tarafa ANINDA bildirim gönder!
+  const lastNotifMap = lastOnlineNotifAtByRoom.get(code);
+  const elapsedSinceLastNotif = now - (lastNotifMap[charRole] || 0);
+  const wasOffline = !before[charRole];
+
+  if ((wasOffline || notifyEntry) && elapsedSinceLastNotif > 8000) {
+    lastNotifMap[charRole] = now;
+    const charBadge = charRole === 'bubu' ? '🐼 Bubu' : '🐻 Dudu';
+
+    io.to(code).emit('partner_online_alert', {
+      character: charRole,
+      userName: displayName,
       timestamp: new Date().toISOString()
     });
+
+    // Karşı tarafın uygulaması kapalı veya arka planda olsa bile telefonuna "Sevgilin şu an çevrimiçi" bildirimi gönder!
+    sendPushToRoom(room, {
+      title: '🟢 Sevgilin Şu An Çevrimiçi! 💕',
+      body: `${displayName} (${charBadge}) uygulamaya girdi ve şu an çevrimiçi!`,
+      fromChar: charRole,
+      tag: 'partner-online-' + charRole,
+      suppressSocketActivity: true
+    });
   }
+
+  return after;
 }
 
-function removeSocketPresence(socket, roomCode) {
+function markCharacterOffline(roomCode, character, socket = null) {
   const code = (roomCode || 'BUDU-2026').trim().toUpperCase();
   const roomMap = onlineSocketsByRoom.get(code);
-  if (roomMap && roomMap.has(socket.id)) {
+  let removedChar = character;
+
+  if (roomMap && socket && socket.id && roomMap.has(socket.id)) {
+    const info = roomMap.get(socket.id);
+    if (!removedChar && info) removedChar = info.character;
     roomMap.delete(socket.id);
-    io.to(code).emit('presence_state', getRoomPresence(code));
   }
+
+  if (removedChar) {
+    // Eğer aynı karakterle başka açık soket kalmadıysa kalp atışını ve bildirim kilidini sıfırla
+    let stillHasSocketForChar = false;
+    if (roomMap) {
+      for (const info of roomMap.values()) {
+        if (info.character === removedChar) {
+          stillHasSocketForChar = true;
+          break;
+        }
+      }
+    }
+    if (!stillHasSocketForChar) {
+      const hb = activePresenceByRoom.get(code);
+      if (hb) hb[removedChar] = 0;
+      const lastNotifMap = lastOnlineNotifAtByRoom.get(code);
+      if (lastNotifMap) lastNotifMap[removedChar] = 0;
+    }
+  }
+
+  const after = getRoomPresence(code);
+  io.to(code).emit('presence_state', after);
+  return after;
 }
+
+// HTTP üzerinden Çevrimiçi Kalp Atışı (Heartbeat) ve Uygulamaya Giriş/Çıkış Bildirimi Endpointi
+app.post('/api/room/:code/presence', (req, res) => {
+  const room = getRoom(req.params.code);
+  const { character, userName, status, notifyEntry } = req.body || {};
+  const charRole = character === 'dudu' ? 'dudu' : 'bubu';
+  if (status === 'offline') {
+    const presence = markCharacterOffline(room.roomCode, charRole, null);
+    return res.json({ success: true, presence });
+  }
+  const presence = markCharacterOnlineAndNotify(room, charRole, userName, { notifyEntry: !!notifyEntry });
+  return res.json({ success: true, presence });
+});
 
 // ============================================================================
 // SOCKET.IO GERÇEK ZAMANLI İKİ TARAF SENKRONİZASYONU & BİLDİRİMLER
@@ -732,23 +874,33 @@ io.on('connection', (socket) => {
     }
     saveDB(db);
 
-    registerSocketPresence(socket, currentRoomCode, character, userName);
+    markCharacterOnlineAndNotify(room, character, userName, { socket, notifyEntry: true });
     socket.emit('room_state', sanitizeRoomForClient(room));
   });
 
-  socket.on('update_presence_character', ({ roomCode, character, userName }) => {
-    registerSocketPresence(socket, roomCode || currentRoomCode, character, userName);
+  socket.on('update_presence_character', ({ roomCode, character, userName, notifyEntry }) => {
+    const room = getRoom(roomCode || currentRoomCode);
+    markCharacterOnlineAndNotify(room, character, userName, { socket, notifyEntry: !!notifyEntry });
+  });
+
+  socket.on('user_entered_app', ({ roomCode, character, userName }) => {
+    const room = getRoom(roomCode || currentRoomCode);
+    markCharacterOnlineAndNotify(room, character, userName, { socket, notifyEntry: true });
+  });
+
+  socket.on('user_left_app', ({ roomCode, character }) => {
+    markCharacterOffline(roomCode || currentRoomCode, character, socket);
   });
 
   socket.on('disconnect', () => {
-    removeSocketPresence(socket, currentRoomCode);
+    markCharacterOffline(currentRoomCode, null, socket);
   });
 
   socket.on('update_couple_info', ({ roomCode, coupleInfo, fromChar }) => {
     const room = getRoom(roomCode || currentRoomCode);
     room.coupleInfo = { ...room.coupleInfo, ...coupleInfo };
     saveDB(db);
-    io.to(room.roomCode).emit('room_state', room);
+    io.to(room.roomCode).emit('couple_info_updated', room.coupleInfo);
     sendPushToRoom(room, {
       title: '⚙️ Çift Ayarları Güncellendi',
       body: `${room.coupleInfo.bubuName} & ${room.coupleInfo.duduName} ayarları senkronize edildi! 💕`,
@@ -792,16 +944,23 @@ io.on('connection', (socket) => {
       room.coupleInfo.loveMeter = Math.min(100, (room.coupleInfo.loveMeter ?? 80) + 5);
     }
     room.coupleInfo.totalInteractions = (room.coupleInfo.totalInteractions || 0) + 1;
-    saveDB(db);
 
-    io.to(room.roomCode).emit('affection_received', { entry, room });
+    // 0ms anında karşı tarafa gönder (Tüm fotoğrafları içeren dev room nesnesini göndermeden!)
+    io.to(room.roomCode).emit('affection_received', {
+      entry,
+      loveMeter: room.coupleInfo.loveMeter,
+      totalInteractions: room.coupleInfo.totalInteractions
+    });
 
     sendPushToRoom(room, {
       title: `${entry.fromName}: ${entry.title}`,
       body: entry.message,
       fromChar: entry.fromChar,
-      tag: 'affection-' + Date.now()
+      tag: 'affection-' + Date.now(),
+      suppressSocketActivity: true
     });
+
+    saveDB(db);
   });
 
   socket.on('live_touch', (data) => {
@@ -818,8 +977,11 @@ io.on('connection', (socket) => {
     if (score > prevBest) {
       room.games[gameKey][character] = score;
     }
-    saveDB(db);
-    io.to(room.roomCode).emit('room_state', room);
+
+    io.to(room.roomCode).emit('game_score_updated', {
+      gameKey,
+      scores: room.games[gameKey]
+    });
 
     const otherChar = character === 'bubu' ? 'dudu' : 'bubu';
     const otherScore = room.games[gameKey][otherChar] || 0;
@@ -841,6 +1003,8 @@ io.on('connection', (socket) => {
       body: `Tebrikler ${winnerName} önde! Rekoru geçmek için hemen oyna! 🎮`,
       fromChar: character
     });
+
+    saveDB(db);
   });
 
   // Dart Oyunu Hedef Fotoğrafı ve Kafa Noktası Senkronizasyonu
@@ -850,8 +1014,7 @@ io.on('connection', (socket) => {
     if (image !== undefined) room.games.dartTarget.image = image;
     if (typeof headX === 'number') room.games.dartTarget.headX = headX;
     if (typeof headY === 'number') room.games.dartTarget.headY = headY;
-    saveDB(db);
-    io.to(room.roomCode).emit('room_state', room);
+    io.to(room.roomCode).emit('dart_target_updated', room.games.dartTarget);
 
     if (image) {
       sendPushToRoom(room, {
@@ -860,6 +1023,7 @@ io.on('connection', (socket) => {
         fromChar
       });
     }
+    saveDB(db);
   });
 
   // Canlı Karşılıklı veya Tek Kişilik XOX
@@ -1070,8 +1234,10 @@ io.on('connection', (socket) => {
     if (!room.games.quizAnswers) room.games.quizAnswers = {};
     if (!room.games.quizAnswers[questionId]) room.games.quizAnswers[questionId] = {};
     room.games.quizAnswers[questionId][character] = answer;
-    saveDB(db);
-    io.to(room.roomCode).emit('room_state', room);
+    io.to(room.roomCode).emit('quiz_updated', {
+      quizQuestions: room.games.quizQuestions,
+      quizAnswers: room.games.quizAnswers
+    });
 
     const qObj = (room.games.quizQuestions || []).find((q) => q.id === questionId);
     const qAns = room.games.quizAnswers[questionId];
@@ -1092,9 +1258,10 @@ io.on('connection', (socket) => {
         fromChar: character
       });
     }
+    saveDB(db);
   });
 
-    socket.on('add_quiz_question', ({ roomCode, question, options, fromChar, fromName }) => {
+  socket.on('add_quiz_question', ({ roomCode, question, options, fromChar, fromName }) => {
     const room = getRoom(roomCode || currentRoomCode);
     if (!Array.isArray(room.games.quizQuestions)) room.games.quizQuestions = [];
     const newQ = {
@@ -1103,14 +1270,17 @@ io.on('connection', (socket) => {
       options: options && options.length >= 2 ? options : ['Bubu 🐼', 'Dudu 🐻', 'İkimiz de 💕']
     };
     room.games.quizQuestions.unshift(newQ);
-    saveDB(db);
-    io.to(room.roomCode).emit('room_state', room);
+    io.to(room.roomCode).emit('quiz_updated', {
+      quizQuestions: room.games.quizQuestions,
+      quizAnswers: room.games.quizAnswers
+    });
 
     sendPushToRoom(room, {
       title: `💑 ${fromName || 'Aşkın'} Yeni Bir Çift Uyum Sorusu Ekledi!`,
       body: `"${question}" — Hemen girip cevabını seç!`,
       fromChar
     });
+    saveDB(db);
   });
 
   socket.on('delete_quiz_question', ({ roomCode, questionId }) => {
@@ -1119,8 +1289,11 @@ io.on('connection', (socket) => {
       room.games.quizQuestions = room.games.quizQuestions.filter((q) => q.id !== questionId);
     }
     if (!room.deletedIds.includes(questionId)) room.deletedIds.push(questionId);
+    io.to(room.roomCode).emit('quiz_updated', {
+      quizQuestions: room.games.quizQuestions,
+      quizAnswers: room.games.quizAnswers
+    });
     saveDB(db);
-    io.to(room.roomCode).emit('room_state', room);
   });
 
   // 3) AŞK NOTLARI & CANLI MESAJLAŞMA
@@ -1138,14 +1311,14 @@ io.on('connection', (socket) => {
       createdAt: new Date().toISOString()
     };
     room.notes.unshift(newNote);
-    saveDB(db);
-    io.to(room.roomCode).emit('note_added', { note: newNote, room });
+    io.to(room.roomCode).emit('note_added', { note: newNote, notes: room.notes });
 
     sendPushToRoom(room, {
       title: `💌 ${newNote.authorName} Yeni Bir Aşk Notu Bıraktı!`,
       body: `${newNote.title}: "${newNote.content}"`,
       fromChar: newNote.authorChar
     });
+    saveDB(db);
   });
 
   socket.on('edit_note', ({ roomCode, note, fromChar, fromName }) => {
@@ -1160,13 +1333,13 @@ io.on('connection', (socket) => {
         mood: note.mood || room.notes[idx].mood,
         updatedAt: new Date().toISOString()
       };
-      saveDB(db);
-      io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+      io.to(room.roomCode).emit('notes_updated', room.notes);
       sendPushToRoom(room, {
         title: `✏️ ${fromName || 'Aşkın'} Bir Aşk Notunu Düzenledi`,
         body: `${room.notes[idx].title}: "${room.notes[idx].content}"`,
         fromChar
       });
+      saveDB(db);
     }
   });
 
@@ -1174,8 +1347,8 @@ io.on('connection', (socket) => {
     const room = getRoom(roomCode || currentRoomCode);
     room.notes = room.notes.filter((n) => n.id !== noteId);
     if (!room.deletedIds.includes(noteId)) room.deletedIds.push(noteId);
+    io.to(room.roomCode).emit('notes_updated', room.notes);
     saveDB(db);
-    io.to(room.roomCode).emit('room_state', room);
   });
 
   socket.on('send_message', ({ roomCode, message }) => {
@@ -1194,14 +1367,14 @@ io.on('connection', (socket) => {
     if (room.messages.length > 200) {
       room.messages = room.messages.slice(-200);
     }
-    saveDB(db);
-    io.to(room.roomCode).emit('message_received', { message: newMsg, room });
+    io.to(room.roomCode).emit('message_received', { message: newMsg });
 
     sendPushToRoom(room, {
       title: `💬 ${newMsg.senderName} Mesaj Gönderdi`,
       body: newMsg.text || '📸 Sana bir fotoğraf/çıkartma gönderdi!',
       fromChar: newMsg.senderChar
     });
+    saveDB(db);
   });
 
   socket.on('react_message', ({ roomCode, messageId, emoji, fromChar, fromName }) => {
@@ -1212,14 +1385,14 @@ io.on('connection', (socket) => {
       if (!target.reactions.includes(emoji)) {
         target.reactions.push(emoji);
       }
-      saveDB(db);
-      io.to(room.roomCode).emit('room_state', room);
+      io.to(room.roomCode).emit('message_reacted', { messageId, reactions: target.reactions });
 
       sendPushToRoom(room, {
         title: `${emoji} ${fromName || 'Aşkın'} Mesajına İfade Bıraktı`,
         body: `"${target.text || 'Fotoğraf'}" mesajına ${emoji} bıraktı!`,
         fromChar
       });
+      saveDB(db);
     }
   });
 
@@ -1244,14 +1417,14 @@ io.on('connection', (socket) => {
       createdAt: new Date().toISOString()
     };
     room.memories.unshift(newMem);
-    saveDB(db);
-    io.to(room.roomCode).emit('memory_added', { memory: newMem, room });
+    io.to(room.roomCode).emit('memory_added', { memory: newMem });
 
     sendPushToRoom(room, {
       title: `📸 ${newMem.authorName} Takvime Yeni Bir Anı Ekledi!`,
       body: `${newMem.title} (${newMem.date}) ${newMem.location ? '• 📍 ' + newMem.location : ''}`,
       fromChar: newMem.authorChar
     });
+    saveDB(db);
   });
 
   socket.on('edit_memory', ({ roomCode, memory, fromChar, fromName }) => {
@@ -1268,13 +1441,13 @@ io.on('connection', (socket) => {
         image: memory.image !== undefined ? memory.image : room.memories[idx].image,
         updatedAt: new Date().toISOString()
       };
-      saveDB(db);
-      io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+      io.to(room.roomCode).emit('memories_updated', room.memories);
       sendPushToRoom(room, {
         title: `✏️ ${fromName || 'Aşkın'} Bir Anıyı Düzenledi!`,
         body: `${room.memories[idx].title} (${room.memories[idx].date})`,
         fromChar
       });
+      saveDB(db);
     }
   });
 
@@ -1282,8 +1455,8 @@ io.on('connection', (socket) => {
     const room = getRoom(roomCode || currentRoomCode);
     room.memories = room.memories.filter((m) => m.id !== memoryId);
     if (!room.deletedIds.includes(memoryId)) room.deletedIds.push(memoryId);
+    io.to(room.roomCode).emit('memories_updated', room.memories);
     saveDB(db);
-    io.to(room.roomCode).emit('room_state', room);
   });
 
   socket.on('add_event', ({ roomCode, event }) => {
@@ -1303,14 +1476,14 @@ io.on('connection', (socket) => {
     };
     room.events.push(newEvt);
     room.events.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-    saveDB(db);
-    io.to(room.roomCode).emit('event_added', { event: newEvt, room });
+    io.to(room.roomCode).emit('event_added', { event: newEvt, events: room.events });
 
     sendPushToRoom(room, {
       title: `📅 ${newEvt.authorName} Yeni Bir Plan / Etkinlik Ekledi!`,
       body: `${newEvt.title} • Tarih: ${newEvt.date} Saat: ${newEvt.time}`,
       fromChar: newEvt.authorChar
     });
+    saveDB(db);
   });
 
   socket.on('edit_event', ({ roomCode, event, fromChar, fromName }) => {
@@ -1328,13 +1501,13 @@ io.on('connection', (socket) => {
         updatedAt: new Date().toISOString()
       };
       room.events.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-      saveDB(db);
-      io.to(room.roomCode).emit('room_state', sanitizeRoomForClient(room));
+      io.to(room.roomCode).emit('events_updated', room.events);
       sendPushToRoom(room, {
         title: `✏️ ${fromName || 'Aşkın'} Bir Planı / Etkinliği Düzenledi!`,
         body: `${room.events[idx].title} • Tarih: ${room.events[idx].date} Saat: ${room.events[idx].time}`,
         fromChar
       });
+      saveDB(db);
     }
   });
 
@@ -1343,8 +1516,8 @@ io.on('connection', (socket) => {
     const evt = room.events.find((e) => e.id === eventId);
     if (evt) {
       evt.completed = !evt.completed;
+      io.to(room.roomCode).emit('events_updated', room.events);
       saveDB(db);
-      io.to(room.roomCode).emit('room_state', room);
     }
   });
 
@@ -1352,8 +1525,8 @@ io.on('connection', (socket) => {
     const room = getRoom(roomCode || currentRoomCode);
     room.events = room.events.filter((e) => e.id !== eventId);
     if (!room.deletedIds.includes(eventId)) room.deletedIds.push(eventId);
+    io.to(room.roomCode).emit('events_updated', room.events);
     saveDB(db);
-    io.to(room.roomCode).emit('room_state', room);
   });
 
   // 5) "BİZİM ŞARKILARIMIZ" MÜZİK ÇALAR
@@ -1371,22 +1544,22 @@ io.on('connection', (socket) => {
       createdAt: new Date().toISOString()
     };
     room.songs.unshift(newSong);
-    saveDB(db);
-    io.to(room.roomCode).emit('song_added', { song: newSong, room });
+    io.to(room.roomCode).emit('song_added', { song: newSong, songs: room.songs });
 
     sendPushToRoom(room, {
       title: `🎵 ${newSong.addedByName} "Bizim Şarkılarımız"a Şarkı Ekledi!`,
       body: `${newSong.title} - ${newSong.artist} ${newSong.note ? '• "' + newSong.note + '"' : ''}`,
       fromChar: newSong.addedByChar
     });
+    saveDB(db);
   });
 
   socket.on('delete_song', ({ roomCode, songId }) => {
     const room = getRoom(roomCode || currentRoomCode);
     room.songs = room.songs.filter((s) => s.id !== songId);
     if (!room.deletedIds.includes(songId)) room.deletedIds.push(songId);
+    io.to(room.roomCode).emit('songs_updated', room.songs);
     saveDB(db);
-    io.to(room.roomCode).emit('room_state', room);
   });
 
   socket.on('play_song_sync', ({ roomCode, song, fromChar, fromName }) => {

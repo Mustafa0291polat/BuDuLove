@@ -178,6 +178,88 @@ function loadLocalBackup() {
   return null;
 }
 
+// Hızlı bağlantı (0ms join_room) için büyük Base64 fotoğrafları hariç tutan hafif yedek
+function getLightweightClientBackup() {
+  const full = loadLocalBackup();
+  if (!full || typeof full !== 'object') return null;
+  return {
+    coupleInfo: full.coupleInfo,
+    deletedIds: full.deletedIds || [],
+    notes: full.notes || [],
+    events: full.events || [],
+    songs: (full.songs || []).map((s) => (s && s.audioUrl && s.audioUrl.length > 2000 ? { ...s, audioUrl: '' } : s)),
+    games: full.games?.xox?.rewardHistory ? { xox: { rewardHistory: full.games.xox.rewardHistory } } : undefined
+  };
+}
+
+let presenceHeartbeatTimer = null;
+
+function sendPresenceUpdateToServer(status = 'online', notifyEntry = false) {
+  const token = getAuthToken();
+  if (!token && status === 'online') return;
+
+  if (socket && socket.connected) {
+    if (status === 'offline') {
+      socket.emit('user_left_app', {
+        roomCode: currentRoomCode,
+        character: myCharacter
+      });
+    } else if (notifyEntry) {
+      socket.emit('user_entered_app', {
+        roomCode: currentRoomCode,
+        character: myCharacter,
+        userName: getMyDisplayName()
+      });
+    } else {
+      socket.emit('update_presence_character', {
+        roomCode: currentRoomCode,
+        character: myCharacter,
+        userName: getMyDisplayName(),
+        notifyEntry: false
+      });
+    }
+  }
+
+  const payload = JSON.stringify({
+    character: myCharacter,
+    userName: getMyDisplayName(),
+    status,
+    notifyEntry: !!notifyEntry
+  });
+
+  if (status === 'offline' && navigator.sendBeacon) {
+    try {
+      const blob = new Blob([payload], { type: 'application/json' });
+      navigator.sendBeacon(`/api/room/${currentRoomCode}/presence`, blob);
+      return;
+    } catch (e) {}
+  }
+
+  fetch(`/api/room/${currentRoomCode}/presence`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: payload,
+    keepalive: status === 'offline'
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      if (data && data.presence) {
+        partnerPresenceState = data.presence;
+        updatePartnerPresenceUI();
+      }
+    })
+    .catch(() => {});
+}
+
+function startPresenceHeartbeat() {
+  if (presenceHeartbeatTimer) clearInterval(presenceHeartbeatTimer);
+  presenceHeartbeatTimer = setInterval(() => {
+    if (!document.hidden && getAuthToken()) {
+      sendPresenceUpdateToServer('online', false);
+    }
+  }, 18000);
+}
+
 // ============================================================================
 // ÖZEL ÇİFT PIN KİLİT SİSTEMİ (OTOMATİK ARKA PLAN & EKRAN KİLİDİ - ŞİFRE: 220925)
 // ============================================================================
@@ -196,10 +278,11 @@ function setAuthToken(token) {
 }
 
 function initAutoLockWatchers() {
-  // 1) Uygulama arka plana alındığında veya telefon kilitlendiğinde 1 dakikalık sayacı başlat
+  // 1) Uygulama arka plana alındığında veya telefon kilitlendiğinde anında çevrimdışı bildir, 1 dk kalırsa PIN kilitle
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       backgroundEnteredAt = Date.now();
+      sendPresenceUpdateToServer('offline', false);
       if (backgroundLockTimer) clearTimeout(backgroundLockTimer);
       backgroundLockTimer = setTimeout(() => {
         lockAppManually();
@@ -211,6 +294,9 @@ function initAutoLockWatchers() {
       }
       if (backgroundEnteredAt && (Date.now() - backgroundEnteredAt >= AUTO_LOCK_BACKGROUND_MS)) {
         lockAppManually();
+      } else if (getAuthToken()) {
+        // Kilitlenmeden geri döndüyse anında çevrimiçi yap ve sevgiliye bildirim gönder!
+        sendPresenceUpdateToServer('online', true);
       }
       backgroundEnteredAt = null;
     }
@@ -219,11 +305,14 @@ function initAutoLockWatchers() {
   // 2) iOS ekran kilidi / sayfa askıya alınma (freeze / pagehide) durumunda kontrol
   window.addEventListener('pagehide', () => {
     backgroundEnteredAt = Date.now();
+    sendPresenceUpdateToServer('offline', false);
   });
 
   window.addEventListener('pageshow', () => {
     if (backgroundEnteredAt && (Date.now() - backgroundEnteredAt >= AUTO_LOCK_BACKGROUND_MS)) {
       lockAppManually();
+    } else if (getAuthToken()) {
+      sendPresenceUpdateToServer('online', true);
     }
   });
 
@@ -231,6 +320,8 @@ function initAutoLockWatchers() {
     if (backgroundEnteredAt && (Date.now() - backgroundEnteredAt >= AUTO_LOCK_BACKGROUND_MS)) {
       lockAppManually();
       backgroundEnteredAt = null;
+    } else if (getAuthToken()) {
+      sendPresenceUpdateToServer('online', false);
     }
   });
 }
@@ -267,7 +358,9 @@ async function submitPinLogin() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         roomCode: currentRoomCode,
-        pin: currentPinInput
+        pin: currentPinInput,
+        character: myCharacter,
+        userName: getMyDisplayName()
       })
     });
     const data = await res.json();
@@ -278,12 +371,30 @@ async function submitPinLogin() {
       updatePinDotsUI();
       document.getElementById('pinLockOverlay').classList.add('unlocked');
 
-      if (socket && socket.connected) {
+      // Sunucudan gelen oda ve çevrimiçi bilgisini 0ms anında ekrana yansıt!
+      if (data.presence) {
+        partnerPresenceState = data.presence;
+      } else {
+        partnerPresenceState[myCharacter] = true;
+      }
+      if (data.room) {
+        roomState = data.room;
+        saveLocalBackup(roomState);
+        renderAllFromState();
+      }
+      updateCharacterRoleUI();
+      updatePartnerPresenceUI();
+      startPresenceHeartbeat();
+
+      if (socket) {
+        if (!socket.connected) {
+          socket.connect();
+        }
         socket.emit('join_room', {
           roomCode: currentRoomCode,
           character: myCharacter,
           userName: getMyDisplayName(),
-          clientBackup: loadLocalBackup(),
+          clientBackup: getLightweightClientBackup(),
           authToken: data.authToken
         });
       }
@@ -307,6 +418,7 @@ async function submitPinLogin() {
 }
 
 function lockAppManually() {
+  sendPresenceUpdateToServer('offline', false);
   setAuthToken('');
   currentPinInput = '';
   updatePinDotsUI();
@@ -556,12 +668,11 @@ function initSocketConnection() {
     socket.on('connect', () => {
       const token = getAuthToken();
       if (!token) return;
-      const clientBackup = loadLocalBackup();
       socket.emit('join_room', {
         roomCode: currentRoomCode,
         character: myCharacter,
         userName: getMyDisplayName(),
-        clientBackup,
+        clientBackup: getLightweightClientBackup(),
         authToken: token
       });
     });
@@ -575,8 +686,17 @@ function initSocketConnection() {
       roomState = room;
       saveLocalBackup(roomState);
       renderAllFromState();
+      updatePartnerPresenceUI();
       if (!forcedRole && !localStorage.getItem(storagePrefix + 'charChosenOnce')) {
         openCharSelectModal();
+      }
+    });
+
+    socket.on('couple_info_updated', (coupleInfo) => {
+      if (roomState) {
+        roomState.coupleInfo = coupleInfo;
+        saveLocalBackup(roomState);
+        renderAllFromState();
       }
     });
 
@@ -591,6 +711,10 @@ function initSocketConnection() {
     });
 
     socket.on('partner_online_alert', ({ character, userName }) => {
+      if (character) {
+        partnerPresenceState[character] = true;
+        updatePartnerPresenceUI();
+      }
       if (character !== myCharacter && isNotificationsEnabled) {
         showIosBanner('🟢💕', 'Sevgilin Şu An Çevrimiçi!', `${userName || 'Aşkın'} uygulamaya girdi ve şu an çevrimiçi!`);
       }
@@ -617,6 +741,31 @@ function initSocketConnection() {
       }
     });
 
+    socket.on('game_score_updated', ({ gameKey, scores }) => {
+      if (roomState && roomState.games && gameKey) {
+        roomState.games[gameKey] = scores;
+        saveLocalBackup(roomState);
+        renderGamesState();
+      }
+    });
+
+    socket.on('dart_target_updated', (dartTarget) => {
+      if (roomState && roomState.games) {
+        roomState.games.dartTarget = dartTarget;
+        saveLocalBackup(roomState);
+        loadDartTargetFromState();
+      }
+    });
+
+    socket.on('quiz_updated', ({ quizQuestions, quizAnswers }) => {
+      if (roomState && roomState.games) {
+        if (quizQuestions) roomState.games.quizQuestions = quizQuestions;
+        if (quizAnswers) roomState.games.quizAnswers = quizAnswers;
+        saveLocalBackup(roomState);
+        renderCoupleQuiz();
+      }
+    });
+
     // Uygulamaya ne eklenirse eklensin karşı tarafa canlı bildirim göster
     socket.on('activity_notification', (notif) => {
       if (notif.fromChar && notif.fromChar !== myCharacter && isNotificationsEnabled) {
@@ -629,10 +778,27 @@ function initSocketConnection() {
       showWinnerCelebrationCard(data);
     });
 
-    socket.on('affection_received', ({ entry, room }) => {
-      roomState = room;
+    socket.on('affection_received', ({ entry, loveMeter, totalInteractions, room }) => {
+      if (room) {
+        roomState = room;
+      } else if (roomState) {
+        if (!Array.isArray(roomState.affectionHistory)) roomState.affectionHistory = [];
+        if (!roomState.affectionHistory.some((a) => a.id === entry.id)) {
+          roomState.affectionHistory.unshift(entry);
+        }
+        if (roomState.coupleInfo) {
+          if (typeof loveMeter === 'number') roomState.coupleInfo.loveMeter = loveMeter;
+          if (typeof totalInteractions === 'number') roomState.coupleInfo.totalInteractions = totalInteractions;
+        }
+      }
       saveLocalBackup(roomState);
-      renderAllFromState();
+      if (roomState && roomState.coupleInfo) {
+        const meter = Math.min(100, Math.max(0, roomState.coupleInfo.loveMeter ?? 100));
+        document.getElementById('loveMeterValue').textContent = `%${meter} Dolu`;
+        document.getElementById('loveMeterFill').style.width = `${meter}%`;
+        document.getElementById('totalInteractionsBadge').textContent = `${roomState.coupleInfo.totalInteractions || 0} Dokunuş`;
+      }
+      renderAffectionFeed();
       animateStageCharacters(entry.type, entry.message);
 
       if (entry.fromChar !== myCharacter) {
@@ -661,16 +827,49 @@ function initSocketConnection() {
       }
     });
 
-    socket.on('note_added', ({ note, room }) => {
-      roomState = room;
+    socket.on('note_added', ({ note, notes, room }) => {
+      if (room) roomState = room;
+      else if (roomState) {
+        if (Array.isArray(notes)) roomState.notes = notes;
+        else if (note) {
+          if (!Array.isArray(roomState.notes)) roomState.notes = [];
+          roomState.notes.unshift(note);
+        }
+      }
       saveLocalBackup(roomState);
-      renderAllFromState();
+      renderStickyNotes();
+    });
+
+    socket.on('notes_updated', (notes) => {
+      if (roomState && Array.isArray(notes)) {
+        roomState.notes = notes;
+        saveLocalBackup(roomState);
+        renderStickyNotes();
+      }
     });
 
     socket.on('message_received', ({ message, room }) => {
-      roomState = room;
+      if (room) {
+        roomState = room;
+      } else if (roomState && message) {
+        if (!Array.isArray(roomState.messages)) roomState.messages = [];
+        if (!roomState.messages.some((m) => m.id === message.id)) {
+          roomState.messages.push(message);
+        }
+      }
       saveLocalBackup(roomState);
       renderChatMessages();
+    });
+
+    socket.on('message_reacted', ({ messageId, reactions }) => {
+      if (roomState && Array.isArray(roomState.messages)) {
+        const msg = roomState.messages.find((m) => m.id === messageId);
+        if (msg) {
+          msg.reactions = reactions;
+          saveLocalBackup(roomState);
+          renderChatMessages();
+        }
+      }
     });
 
     socket.on('partner_typing', ({ character, userName, isTyping }) => {
@@ -684,21 +883,65 @@ function initSocketConnection() {
     });
 
     socket.on('memory_added', ({ memory, room }) => {
-      roomState = room;
+      if (room) roomState = room;
+      else if (roomState && memory) {
+        if (!Array.isArray(roomState.memories)) roomState.memories = [];
+        if (!roomState.memories.some((m) => m.id === memory.id)) {
+          roomState.memories.unshift(memory);
+        }
+      }
       saveLocalBackup(roomState);
-      renderAllFromState();
+      renderCalendarAndEvents();
     });
 
-    socket.on('event_added', ({ event, room }) => {
-      roomState = room;
-      saveLocalBackup(roomState);
-      renderAllFromState();
+    socket.on('memories_updated', (memories) => {
+      if (roomState && Array.isArray(memories)) {
+        roomState.memories = memories;
+        saveLocalBackup(roomState);
+        renderCalendarAndEvents();
+      }
     });
 
-    socket.on('song_added', ({ song, room }) => {
-      roomState = room;
+    socket.on('event_added', ({ event, events, room }) => {
+      if (room) roomState = room;
+      else if (roomState) {
+        if (Array.isArray(events)) roomState.events = events;
+        else if (event) {
+          if (!Array.isArray(roomState.events)) roomState.events = [];
+          roomState.events.push(event);
+        }
+      }
       saveLocalBackup(roomState);
-      renderAllFromState();
+      renderCalendarAndEvents();
+    });
+
+    socket.on('events_updated', (events) => {
+      if (roomState && Array.isArray(events)) {
+        roomState.events = events;
+        saveLocalBackup(roomState);
+        renderCalendarAndEvents();
+      }
+    });
+
+    socket.on('song_added', ({ song, songs, room }) => {
+      if (room) roomState = room;
+      else if (roomState) {
+        if (Array.isArray(songs)) roomState.songs = songs;
+        else if (song) {
+          if (!Array.isArray(roomState.songs)) roomState.songs = [];
+          roomState.songs.unshift(song);
+        }
+      }
+      saveLocalBackup(roomState);
+      renderSavedSongsList();
+    });
+
+    socket.on('songs_updated', (songs) => {
+      if (roomState && Array.isArray(songs)) {
+        roomState.songs = songs;
+        saveLocalBackup(roomState);
+        renderSavedSongsList();
+      }
     });
 
     socket.on('partner_playing_song', ({ song, fromName }) => {
@@ -807,17 +1050,29 @@ function chooseCharacterAndClose(charName) {
 
 function updatePartnerPresenceUI() {
   const partnerChar = getPartnerCharacter();
-  const isOnline = !!(partnerPresenceState && partnerPresenceState[partnerChar]);
+  const isPartnerOnline = !!(partnerPresenceState && partnerPresenceState[partnerChar]);
+  const isMeOnline = !!(getAuthToken() || (partnerPresenceState && partnerPresenceState[myCharacter]));
   const dot = document.getElementById('partnerOnlineDot');
   const text = document.getElementById('partnerOnlineText');
+
   if (dot) {
-    dot.style.background = isOnline ? '#2ECC71' : '#9E9E9E';
-    dot.style.boxShadow = isOnline ? '0 0 0 3px rgba(46, 204, 113, 0.28)' : 'none';
+    dot.style.background = (isPartnerOnline || isMeOnline) ? '#2ECC71' : '#9E9E9E';
+    dot.style.boxShadow = (isPartnerOnline || isMeOnline) ? '0 0 0 3px rgba(46, 204, 113, 0.28)' : 'none';
   }
   if (text) {
-    text.textContent = isOnline ? '🟢 Sevgilin şu an çevrimiçi' : '⚪ Sevgilin çevrimdışı';
-    text.style.color = isOnline ? '#1E8449' : 'var(--text-muted)';
-    text.style.fontWeight = isOnline ? '800' : '600';
+    if (isPartnerOnline) {
+      text.textContent = '🟢 Sevgilin şu an çevrimiçi';
+      text.style.color = '#1E8449';
+      text.style.fontWeight = '800';
+    } else if (isMeOnline) {
+      text.textContent = '🟢 Çevrimiçi • Sevgilin bekleniyor';
+      text.style.color = '#1E8449';
+      text.style.fontWeight = '800';
+    } else {
+      text.textContent = '⚪ Sevgilin çevrimdışı';
+      text.style.color = 'var(--text-muted)';
+      text.style.fontWeight = '600';
+    }
   }
 }
 
@@ -829,14 +1084,7 @@ function setMyCharacter(charName) {
   updatePartnerPresenceUI();
   renderAllFromState();
   subscribeDeviceToWebPush(false);
-
-  if (socket && socket.connected) {
-    socket.emit('update_presence_character', {
-      roomCode: currentRoomCode,
-      character: myCharacter,
-      userName: getMyDisplayName()
-    });
-  }
+  sendPresenceUpdateToServer('online', true);
 
   const label = myCharacter === 'bubu' ? '🐼 Seçili Karakterin: Bubu' : '🐻 Seçili Karakterin: Dudu';
   showIosBanner(myCharacter === 'bubu' ? '🐼✨' : '🐻✨', 'Karakterin Seçildi!', label);
@@ -854,8 +1102,8 @@ function updateCharacterRoleUI() {
 
   document.getElementById('meAvatarBox').textContent = isBubu ? '🐼' : '🐻';
   document.getElementById('meCharDisplay').textContent = isBubu
-    ? `Ben: ${getMyDisplayName()} 🐼`
-    : `Ben: ${getMyDisplayName()} 🐻`;
+    ? `Ben: ${getMyDisplayName()} 🐼 • 🟢 Çevrimiçi`
+    : `Ben: ${getMyDisplayName()} 🐻 • 🟢 Çevrimiçi`;
   document.getElementById('meNicknameDisplay').textContent = isBubu
     ? 'Sevmek için aşağıda sevgilin Dudu 🐻 ekranda!'
     : 'Sevmek için aşağıda sevgilin Bubu 🐼 ekranda!';

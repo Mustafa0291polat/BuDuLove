@@ -1,4 +1,4 @@
-const CACHE_NAME = 'budulove-v12';
+const CACHE_NAME = 'budulove-v13';
 const ASSETS = [
   '/',
   '/index.html',
