@@ -77,12 +77,17 @@ function sanitizeRoomForClient(room) {
   return copy;
 }
 
-// HTTP Güvenlik Başlıkları (Security Headers)
+// HTTP Güvenlik ve Önbellek (Cache) Başlıkları
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=()');
+  if (req.path === '/' || req.path.endsWith('.html') || req.path.endsWith('.js') || req.path.endsWith('.css')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
   next();
 });
 
@@ -239,9 +244,8 @@ const db = loadDB();
 function ensureRoomStructure(room) {
   const def = getDefaultRoomData(room.roomCode || 'BUDU-2026');
   room.coupleInfo = { ...def.coupleInfo, ...(room.coupleInfo || {}) };
-  if (!room.coupleInfo.startDate || room.coupleInfo.startDate === '2024-06-14') {
-    room.coupleInfo.startDate = '2025-09-22';
-  }
+  // İlişki başlangıç tarihi her zaman 22 Eylül 2025 (2025-09-22) olarak sabittir
+  room.coupleInfo.startDate = '2025-09-22';
   if (!Array.isArray(room.affectionHistory)) room.affectionHistory = [];
   if (!Array.isArray(room.notes)) room.notes = [];
   if (!Array.isArray(room.messages)) room.messages = [];
@@ -695,7 +699,7 @@ function mergeArrayById(serverArr, clientArr, deletedIds = []) {
 const onlineSocketsByRoom = new Map(); // roomCode -> Map<socketId, { character, userName }>
 const activePresenceByRoom = new Map(); // roomCode -> { bubu: number, dudu: number } (last active timestamp)
 const lastOnlineNotifAtByRoom = new Map(); // roomCode -> { bubu: number, dudu: number }
-const PRESENCE_TTL_MS = 45 * 1000; // 45 sn kalp atışı (heartbeat) süresi
+const PRESENCE_TTL_MS = 24 * 1000; // 24 sn kalp atışı (heartbeat) süresi
 
 function getRoomPresence(roomCode) {
   const code = (roomCode || 'BUDU-2026').trim().toUpperCase();
@@ -707,7 +711,11 @@ function getRoomPresence(roomCode) {
     dudu: (now - (hb.dudu || 0)) < PRESENCE_TTL_MS
   };
   if (map) {
-    for (const info of map.values()) {
+    for (const [sockId, info] of map.entries()) {
+      if (now - (info.lastSeen || 0) > PRESENCE_TTL_MS) {
+        map.delete(sockId);
+        continue;
+      }
       if (info.character === 'bubu') status.bubu = true;
       if (info.character === 'dudu') status.dudu = true;
     }
@@ -731,12 +739,19 @@ function markCharacterOnlineAndNotify(room, character, userName, { socket = null
   }
 
   const before = getRoomPresence(code);
+  const now = Date.now();
   const roomMap = onlineSocketsByRoom.get(code);
+
   if (socket && socket.id) {
-    roomMap.set(socket.id, { character: charRole, userName: displayName });
+    roomMap.set(socket.id, { character: charRole, userName: displayName, lastSeen: now });
+  } else if (roomMap) {
+    for (const [sid, info] of roomMap.entries()) {
+      if (info.character === charRole) {
+        roomMap.set(sid, { ...info, lastSeen: now });
+      }
+    }
   }
 
-  const now = Date.now();
   const hb = activePresenceByRoom.get(code);
   hb[charRole] = now;
 
@@ -748,7 +763,7 @@ function markCharacterOnlineAndNotify(room, character, userName, { socket = null
   const elapsedSinceLastNotif = now - (lastNotifMap[charRole] || 0);
   const wasOffline = !before[charRole];
 
-  if ((wasOffline || notifyEntry) && elapsedSinceLastNotif > 8000) {
+  if ((wasOffline || notifyEntry) && elapsedSinceLastNotif > 5000) {
     lastNotifMap[charRole] = now;
     const charBadge = charRole === 'bubu' ? '🐼 Bubu' : '🐻 Dudu';
 
@@ -782,29 +797,32 @@ function markCharacterOffline(roomCode, character, socket = null) {
     roomMap.delete(socket.id);
   }
 
+  // Uygulama arka plana atıldığında veya kapatıldığında o karaktere ait tüm aktif soket kayıtlarını ve kalp atışını ANINDA temizle!
   if (removedChar) {
-    // Eğer aynı karakterle başka açık soket kalmadıysa kalp atışını ve bildirim kilidini sıfırla
-    let stillHasSocketForChar = false;
     if (roomMap) {
-      for (const info of roomMap.values()) {
+      for (const [sid, info] of roomMap.entries()) {
         if (info.character === removedChar) {
-          stillHasSocketForChar = true;
-          break;
+          roomMap.delete(sid);
         }
       }
     }
-    if (!stillHasSocketForChar) {
-      const hb = activePresenceByRoom.get(code);
-      if (hb) hb[removedChar] = 0;
-      const lastNotifMap = lastOnlineNotifAtByRoom.get(code);
-      if (lastNotifMap) lastNotifMap[removedChar] = 0;
-    }
+    const hb = activePresenceByRoom.get(code);
+    if (hb) hb[removedChar] = 0;
+    const lastNotifMap = lastOnlineNotifAtByRoom.get(code);
+    if (lastNotifMap) lastNotifMap[removedChar] = 0;
   }
 
   const after = getRoomPresence(code);
   io.to(code).emit('presence_state', after);
   return after;
 }
+
+// Arka plana atılan veya bağlantısı kopan cihazları her 8 saniyede bir kontrol edip anında çevrimdışıya düşür
+setInterval(() => {
+  for (const code of activePresenceByRoom.keys()) {
+    io.to(code).emit('presence_state', getRoomPresence(code));
+  }
+}, 8000);
 
 // HTTP üzerinden Çevrimiçi Kalp Atışı (Heartbeat) ve Uygulamaya Giriş/Çıkış Bildirimi Endpointi
 app.post('/api/room/:code/presence', (req, res) => {

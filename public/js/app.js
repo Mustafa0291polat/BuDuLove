@@ -231,7 +231,6 @@ function sendPresenceUpdateToServer(status = 'online', notifyEntry = false) {
     try {
       const blob = new Blob([payload], { type: 'application/json' });
       navigator.sendBeacon(`/api/room/${currentRoomCode}/presence`, blob);
-      return;
     } catch (e) {}
   }
 
@@ -257,7 +256,7 @@ function startPresenceHeartbeat() {
     if (!document.hidden && getAuthToken()) {
       sendPresenceUpdateToServer('online', false);
     }
-  }, 18000);
+  }, 10000);
 }
 
 // ============================================================================
@@ -280,6 +279,7 @@ function setAuthToken(token) {
 function initAutoLockWatchers() {
   // 1) Uygulama arka plana alındığında veya telefon kilitlendiğinde anında çevrimdışı bildir, 1 dk kalırsa PIN kilitle
   document.addEventListener('visibilitychange', () => {
+    updateTogetherDaysCounter();
     if (document.hidden) {
       backgroundEnteredAt = Date.now();
       sendPresenceUpdateToServer('offline', false);
@@ -302,13 +302,24 @@ function initAutoLockWatchers() {
     }
   });
 
-  // 2) iOS ekran kilidi / sayfa askıya alınma (freeze / pagehide) durumunda kontrol
+  // 2) iOS ekran kilidi / sayfa askıya alınma / arka plana atılma (pagehide / beforeunload / blur) durumunda ANINDA çevrimdışı yap
   window.addEventListener('pagehide', () => {
     backgroundEnteredAt = Date.now();
     sendPresenceUpdateToServer('offline', false);
   });
 
+  window.addEventListener('beforeunload', () => {
+    sendPresenceUpdateToServer('offline', false);
+  });
+
+  window.addEventListener('blur', () => {
+    if (document.hidden) {
+      sendPresenceUpdateToServer('offline', false);
+    }
+  });
+
   window.addEventListener('pageshow', () => {
+    updateTogetherDaysCounter();
     if (backgroundEnteredAt && (Date.now() - backgroundEnteredAt >= AUTO_LOCK_BACKGROUND_MS)) {
       lockAppManually();
     } else if (getAuthToken()) {
@@ -317,6 +328,7 @@ function initAutoLockWatchers() {
   });
 
   window.addEventListener('focus', () => {
+    updateTogetherDaysCounter();
     if (backgroundEnteredAt && (Date.now() - backgroundEnteredAt >= AUTO_LOCK_BACKGROUND_MS)) {
       lockAppManually();
       backgroundEnteredAt = null;
@@ -462,6 +474,9 @@ async function changeCouplePin() {
 // BAŞLANGIÇ & BAĞLANTI
 // ============================================================================
 window.addEventListener('DOMContentLoaded', () => {
+  // 22 Eylül 2025'ten bugüne geçen gün sayısını ilk salisede hesapla ve yazdır
+  updateTogetherDaysCounter();
+
   // Kayıtlı temayı hemen uygula (Varsayılan: Vişne Çürüğü)
   const savedTheme = localStorage.getItem('budu_theme') || 'visne-curugu';
   applyThemeSelection(savedTheme, false);
@@ -495,8 +510,8 @@ window.addEventListener('DOMContentLoaded', () => {
   updateCharacterRoleUI();
   updateTogetherDaysCounter();
 
-  // Her dakika gün sayacını kontrol et (Gece yarısı geçince otomatik +1 gün artsın)
-  setInterval(updateTogetherDaysCounter, 60000);
+  // Her 30 saniyede bir gün sayacını kontrol et (Gece yarısı 00:00 geçince otomatik +1 gün artsın)
+  setInterval(updateTogetherDaysCounter, 30000);
 });
 
 // ============================================================================
@@ -995,17 +1010,12 @@ function hideIosBanner() {
 // 8) İLİŞKİ BAŞLANGIÇ TARİHİ (22 EYLÜL 2025) & HER GÜN ARTAN GÜN SAYACI
 // ============================================================================
 function updateTogetherDaysCounter() {
-  const startDateStr = (roomState && roomState.coupleInfo && roomState.coupleInfo.startDate) || '2025-09-22';
-  const parts = startDateStr.split('-').map(Number);
-  const startYear = parts[0] || 2025;
-  const startMonth = (parts[1] || 9) - 1;
-  const startDay = parts[2] || 22;
-
+  // İlişki başlangıç tarihi: 22 Eylül 2025 (2025-09-22)
+  const startUTC = Date.UTC(2025, 8, 22); // Aylar 0-indekslidir: 8 = Eylül
   const now = new Date();
-  const startMidnight = new Date(startYear, startMonth, startDay, 0, 0, 0, 0).getTime();
-  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).getTime();
+  const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const diffDays = Math.max(1, Math.round((todayMidnight - startMidnight) / 86400000));
+  const diffDays = Math.max(1, Math.floor((todayUTC - startUTC) / 86400000));
   const el = document.getElementById('togetherDaysCount');
   if (el) {
     el.textContent = `${diffDays} Gündür Birlikteyiz 💞`;
@@ -1051,21 +1061,16 @@ function chooseCharacterAndClose(charName) {
 function updatePartnerPresenceUI() {
   const partnerChar = getPartnerCharacter();
   const isPartnerOnline = !!(partnerPresenceState && partnerPresenceState[partnerChar]);
-  const isMeOnline = !!(getAuthToken() || (partnerPresenceState && partnerPresenceState[myCharacter]));
   const dot = document.getElementById('partnerOnlineDot');
   const text = document.getElementById('partnerOnlineText');
 
   if (dot) {
-    dot.style.background = (isPartnerOnline || isMeOnline) ? '#2ECC71' : '#9E9E9E';
-    dot.style.boxShadow = (isPartnerOnline || isMeOnline) ? '0 0 0 3px rgba(46, 204, 113, 0.28)' : 'none';
+    dot.style.background = isPartnerOnline ? '#2ECC71' : '#9E9E9E';
+    dot.style.boxShadow = isPartnerOnline ? '0 0 0 3px rgba(46, 204, 113, 0.28)' : 'none';
   }
   if (text) {
     if (isPartnerOnline) {
       text.textContent = '🟢 Sevgilin şu an çevrimiçi';
-      text.style.color = '#1E8449';
-      text.style.fontWeight = '800';
-    } else if (isMeOnline) {
-      text.textContent = '🟢 Çevrimiçi • Sevgilin bekleniyor';
       text.style.color = '#1E8449';
       text.style.fontWeight = '800';
     } else {

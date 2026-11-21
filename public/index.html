@@ -136,7 +136,17 @@
           <div class="couple-days-banner">
             <div class="days-badge">
               <span>💞</span>
-              <span id="togetherDaysCount">22 Eylül 2025 • ... Gündür Birlikteyiz</span>
+              <span id="togetherDaysCount">Gündür Birlikteyiz 💞</span>
+              <script>
+                (function() {
+                  var now = new Date();
+                  var startUTC = Date.UTC(2025, 8, 22);
+                  var todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+                  var days = Math.max(1, Math.floor((todayUTC - startUTC) / 86400000));
+                  var el = document.getElementById('togetherDaysCount');
+                  if (el) el.textContent = days + ' Gündür Birlikteyiz 💞';
+                })();
+              </script>
             </div>
             <span class="pill-tag khaki" onclick="openStoryModal()" style="cursor:pointer;">✨ Karakter Hikayesi</span>
           </div>
@@ -1082,6 +1092,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/app.js?v=13"></script>
+  <script src="/js/app.js?v=14"></script>
 </body>
 </html>
